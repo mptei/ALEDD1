@@ -12,11 +12,9 @@ void taskFunction(){
     switch(currentTask){
         case ALL_OFF:
             setAll(0,0,0,0);
-            dimmer.taskOff();
             break;
         case WHITE:
             setAll(0,0,0,255);
-            dimmer.taskOn();
             break;
         case RED:
             setAll(255,0,0,0);
@@ -59,7 +57,7 @@ void taskFunction(){
         case RAINBOW:
             rainbow();
             break;
-		    case SINGLERGB:
+        case SINGLERGB:
             singlergb();
             break;
         case TWINKYSTARS:

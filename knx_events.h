@@ -7,7 +7,11 @@ void dimmSwitchCallback(GroupObject &go)
     tmpBool = (bool)go.value();
     taskSoftOnOff(tmpBool);
     println(F("taskSoftOnOff: %d"), tmpBool);
-    sendSceneNumber = TASK_DIMMER;
+    // Switching on still turns into white
+    if (tmpBool) {
+        setAll(0,0,0,255);
+        sendSceneNumber = WHITE;
+    }
 }
 
 void dimmRelCallback(GroupObject &go)
@@ -18,7 +22,6 @@ void dimmRelCallback(GroupObject &go)
     byte newValue = (byte)go.value();
     taskDimUpDownStop(newValue);
     println(F("taskDimUpDownStop: %d"), newValue);
-    sendSceneNumber = TASK_DIMMER;
 }
       
 void dimmAbsCallback(GroupObject &go)
@@ -29,7 +32,6 @@ void dimmAbsCallback(GroupObject &go)
     byte newValue = (byte)go.value();
     taskNewValue(newValue);
     println(F("taskNewValue: %d"), newValue);
-    sendSceneNumber = TASK_DIMMER;
 }
       
 void sceneCallback(GroupObject &go)
@@ -45,4 +47,20 @@ void sceneCallback(GroupObject &go)
         initialized = false;
     }
     sendSceneNumber = newTask;
+}
+
+void rgbwCallback(GroupObject &go) // RGBW 251.600
+{
+    println(F("rgbwCallback"));
+    lastTask = currentTask;
+    powerSupplyTurnOn = true; //dirty solution: if PS is off and LEDs are off and next command is "turn all off" PS will go on... and after timeout off. Is this a real use case?!
+    acceptNewRGBW = true;
+    uint32_t newValue = (uint32_t)go.value();
+    valuesRGBW[R] = newValue >> 24;
+    valuesRGBW[G] = newValue >> 16;
+    valuesRGBW[B] = newValue >> 8;
+    valuesRGBW[W] = newValue;
+    println(F("valuesRGBW R: %d, G: %d, B: %d, W: %d \n"),valuesRGBW[R],valuesRGBW[G],valuesRGBW[B],valuesRGBW[W]);
+    currentTask = TASK_RGBW;
+    sendSceneNumber = TASK_RGBW;
 }

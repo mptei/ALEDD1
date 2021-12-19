@@ -27,6 +27,7 @@
 #define goScene knx.getGroupObject(6)
 #define goRedVal knx.getGroupObject(7)
 #define goSceneStatus knx.getGroupObject(17)
+#define goRGBW knx.getGroupObject(12)
 
 #define goPowerSupply knx.getGroupObject(34)
 
@@ -200,6 +201,9 @@ void setup()
         goScene.dataPointType(DPT_SceneNumber);
         goScene.callback(sceneCallback);
 
+        goRGBW.dataPointType(DPT_Colour_RGBW);
+        goRGBW.callback(rgbwCallback);
+
         goSceneStatus.dataPointType(DPT_SceneNumber);
         goPowerSupply.dataPointType(DPT_Switch);
 
@@ -254,7 +258,8 @@ void setup()
         //XML group: Dimmer
         dimmer.setDurationAbsolute(softOnOffTimeList[knx.paramByte(PARAM_timeSoft)] * 100);
         dimmer.setDurationRelative(relDimTimeList[knx.paramByte(PARAM_timeRel)] * 1000);
-        dimmer.setValueFunction(&setLeds);
+        //dimmer.setValueFunction(&setLeds);
+        dimmer.setValueFunction(&setBrightness);
         valueMinDay = knx.paramInt(PARAM_dayMin);
         valueMaxDay = knx.paramInt(PARAM_dayMax);
         valueMinNight = knx.paramInt(PARAM_nightMin);
@@ -291,6 +296,11 @@ void setup()
 
         setDimmingCurves();
         initStrip(numberLeds, ledType);
+        // White by default
+        setAll(0,0,0,0xff);
+        // Off by default
+        neopixels->setBrightness(0);
+        pixelsShow = true;
     }
 
     // pin or GPIO the programming led is connected to. Default is LED_BUILTIN

@@ -40,13 +40,7 @@ void testStrip(){
     //there are only 600 LEDs alowed -> hardcoded
     if(neopixels) delete neopixels;
     neopixels = new Adafruit_NeoPixel_ZeroDMA(600, LED_STRIP_PIN, NEO_RGBW);
-    if (!
-#ifdef DEVELPMENT    
-    neopixels->begin(&sercom5, SERCOM5, SERCOM5_DMAC_ID_TX,  6,  7, A5, SPI_PAD_2_SCK_3, SERCOM_RX_PAD_0, PIO_SERCOM)
-#else
-    neopixels->begin(&sercom4, SERCOM4, SERCOM4_DMAC_ID_TX, 22, 23, 24, SPI_PAD_0_SCK_3, SERCOM_RX_PAD_2, PIO_SERCOM_ALT)
-#endif
-    ) {
+    if (!neopixels->begin(&sercom4, SERCOM4, SERCOM4_DMAC_ID_TX, LED_STRIP_PIN, SPI_PAD_0_SCK_3, PIO_SERCOM_ALT)) {
 #ifdef KDEBUG
         Debug.println(F("NeoPixels begin failed"));
 #endif                
@@ -55,11 +49,11 @@ void testStrip(){
     neopixels->setPixelColor(1, 0, 255, 0, 0);
     neopixels->setPixelColor(2, 0, 0, 255, 0);
     neopixels->setPixelColor(3, 0, 0, 0, 255);
-    for(int i = 4; i < 600; i++){
+    for(int i = 4; i < numberLeds; i++){
         if((i % 10 == 0) && (i % 50 != 0)) neopixels->setPixelColor(i-1, 0, 255, 0, 0); //each 10.(10,20,30,40,60,70...) is green
         if(i % 50 == 0) neopixels->setPixelColor(i-1, 0, 0, 255, 0); //each 50.(50,100,150...) is blue
     }
-    neopixels->setPixelColor(599, 255,0,0,0); //last one is red
+    neopixels->setPixelColor(numberLeds-1, 255,0,0,0); //last one is red
     neopixels->show();
 }
 
@@ -91,7 +85,8 @@ void initStrip(word pixel, byte type){
 #ifdef DEVELPMENT    
     neopixels->begin(&sercom5, SERCOM5, SERCOM5_DMAC_ID_TX,  6,  7, A5, SPI_PAD_2_SCK_3, SERCOM_RX_PAD_0, PIO_SERCOM);
 #else
-    neopixels->begin(&sercom4, SERCOM4, SERCOM4_DMAC_ID_TX, 22, 23, 24, SPI_PAD_0_SCK_3, SERCOM_RX_PAD_2, PIO_SERCOM_ALT);
+    //neopixels->begin(&sercom4, SERCOM4, SERCOM4_DMAC_ID_TX, 22, 23, 24, SPI_PAD_0_SCK_3, SERCOM_RX_PAD_2, PIO_SERCOM_ALT);
+    neopixels->begin(&sercom4, SERCOM4, SERCOM4_DMAC_ID_TX, LED_STRIP_PIN, SPI_PAD_0_SCK_3, PIO_SERCOM_ALT);
 #endif
     neopixels->show();
     println(F("initPixel done"));
@@ -182,6 +177,12 @@ void setAllHsv(byte h, byte s, byte v){
 void setLeds(byte value){
     setAll(0, 0, 0, value);
 //    Debug.println(F("setLeds %d"),index);
+}
+
+void setBrightness(byte value){
+    neopixels->setBrightness(value);
+    pixelsShow = true;
+    println(F("setBrightness %d"),value);
 }
 
 //function to set LED-values via dimmer library
