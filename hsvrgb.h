@@ -45,10 +45,10 @@ void hsvToRgb(byte h, byte s, byte v, byte rgbColor[]){
 }
 
 void rgbToHsv(byte r, byte g, byte b, byte hsvColor[]){
-    byte min = min(min(r,g),b);
-    byte max = max(max(r,g),b);
-    byte diff = max - min;
-    hsvColor[2] = max;
+    byte min_val = std::min(std::min(r,g),b);
+    byte max_val = std::max(std::max(r,g),b);
+    byte diff = max_val - min_val;
+    hsvColor[2] = max_val;
     if (hsvColor[2] == 0){
         hsvColor[0] = 0;
         hsvColor[1] = 0;
@@ -57,9 +57,9 @@ void rgbToHsv(byte r, byte g, byte b, byte hsvColor[]){
         if (hsvColor[1] == 0){
             hsvColor[0] = 0;
         }else{
-            if (r == max)
+            if (r == max_val)
                 hsvColor[0] = 0 + ((g - b) * 43) / diff;
-            else if (g == max)
+            else if (g == max_val)
                 hsvColor[0] = 85 + ((b - r) * 43) / diff;
             else
                 hsvColor[0] = 171 + ((r - g) * 43) / diff;

@@ -48,6 +48,7 @@
 #define TASK_IDLE 0xFE
 
 #define USERCOLORS 5
+#define MESSAGES 4
 #define R 0
 #define G 1
 #define B 2

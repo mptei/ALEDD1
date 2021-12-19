@@ -3,10 +3,9 @@ void taskFunction(){
     if(currentTask != TASK_IDLE) {
         lastTaskBeforeMessage = currentTask;
         //exit WAIT state
-        if(!statusM1) statusM1 = true;
-        if(!statusM2) statusM2 = true;
-        if(!statusM3) statusM3 = true;
-        if(!statusM4) statusM4 = true;
+        for (byte mc = 0; mc < MESSAGES; mc++) {
+            if (!(statusM & (1<<mc))) statusM |= (1<<mc);
+        }
     }
     
 
@@ -101,24 +100,24 @@ void taskFunction(){
                 new3Byte[0] = 0;
                 new3Byte[1] = 0;
                 new3Byte[2] = 0;
-                Debug.println(F("TASK_RGB done"));
+                println(F("TASK_RGB done"));
             }
             break;
         case TASK_RGBW:
             if(acceptNewRGBW){
                 //first 12 bits are not defined, 4 bits ignored
-                Debug.println(F("valuesRGBW R: %d, G: %d, B: %d, W: %d"), valuesRGBW[R], valuesRGBW[G], valuesRGBW[B], valuesRGBW[W]);
+                println(F("valuesRGBW R: %d, G: %d, B: %d, W: %d"), valuesRGBW[R], valuesRGBW[G], valuesRGBW[B], valuesRGBW[W]);
                 setAll(valuesRGBW[R], valuesRGBW[G], valuesRGBW[B], valuesRGBW[W]);
                 acceptNewRGBW = false;
                 rgbwChanged = false;
-                Debug.println(F("TASK_RGBW done"));
+                println(F("TASK_RGBW done"));
             }
             break;
         case TASK_HSV:
             if(acceptNewHSV){
                 setAllHsv(valuesHSV[0], valuesHSV[1], valuesHSV[2]);
                 acceptNewHSV = false;
-                Debug.println(F("TASK_HSV done"));
+                println(F("TASK_HSV done"));
             }
             break;
         case TASK_DIMMER:

@@ -50,7 +50,7 @@ void singlergb(){
 void sparkler() {
     if (initialized == false) {
         initialized = true;
-        Debug.println(F("sparkler init"));
+        println(F("sparkler init"));
         pixelbrush->setSpeed(300 * numberLeds / 50); //original 600
         pixelbrush->setFadeout(true); //sparkles fade in
         pixelbrush->setFadein(true);  //and fade out immediately after reaching the set brightness
@@ -76,7 +76,7 @@ void sparkler() {
 void twinkystars() {
     if (initialized == false) {
         initialized = true;
-        Debug.println(F("twinkystars init"));
+        println(F("twinkystars init"));
         neopixels->clear();
         pixelbrush->setSpeed(0); //do not move automatically
         pixelbrush->setFadein(true); //fade in
@@ -107,7 +107,7 @@ void twinkystars() {
 void chaser() {
     if (initialized == false) {
         initialized = true;
-        Debug.println(F("chaser init"));
+        println(F("chaser init"));
         neopixels->clear();
         brushcolor.h = random(255); //choose random color once
         brushcolor.s = 255; //full staturation
@@ -143,7 +143,7 @@ void huefader() {
     lastposition = pixelbrush->getPosition();
     if (initialized == false) {
         initialized = true;
-        Debug.println(F("huefader init"));
+        println(F("huefader init"));
     
         HSV brushcolor;
     
@@ -175,7 +175,7 @@ void huefader() {
 void speedtrails() {
     if (initialized == false) {
         initialized = true;
-        Debug.println(F("speedtrails init"));
+        println(F("speedtrails init"));
         int brushspeed = 900;
         brushcolor.h = 0;
         brushcolor.s = 0; //make it white
@@ -220,7 +220,7 @@ void bouncyballs() {
     static byte skipper = 0;
     if (initialized == false) {
         initialized = true;
-        Debug.println(F("bouncyballs init"));
+        println(F("bouncyballs init"));
         brushcolor.h = 20; //orange
         brushcolor.s = 240; //almost full saturation
         brushcolor.v = 150; //medium brightness

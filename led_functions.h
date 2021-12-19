@@ -28,10 +28,6 @@ void setDimmingCurves(){
     }
 }
 
-void progLed(bool state){
-    digitalWrite(PROG_LED_PIN, state);
-}
-
 //test witch strip we have
 /* choose what you see:
  *  LED 1 2 3 4 5 6 (x = OFF)
@@ -44,11 +40,17 @@ void testStrip(){
     //there are only 600 LEDs alowed -> hardcoded
     if(neopixels) delete neopixels;
     neopixels = new Adafruit_NeoPixel_ZeroDMA(600, LED_STRIP_PIN, NEO_RGBW);
+    if (!
 #ifdef DEVELPMENT    
-    neopixels->begin(&sercom5, SERCOM5, SERCOM5_DMAC_ID_TX,  6,  7, A5, SPI_PAD_2_SCK_3, SERCOM_RX_PAD_0, PIO_SERCOM);
+    neopixels->begin(&sercom5, SERCOM5, SERCOM5_DMAC_ID_TX,  6,  7, A5, SPI_PAD_2_SCK_3, SERCOM_RX_PAD_0, PIO_SERCOM)
 #else
-    neopixels->begin(&sercom4, SERCOM4, SERCOM4_DMAC_ID_TX, 22, 23, 24, SPI_PAD_0_SCK_3, SERCOM_RX_PAD_2, PIO_SERCOM_ALT);
+    neopixels->begin(&sercom4, SERCOM4, SERCOM4_DMAC_ID_TX, 22, 23, 24, SPI_PAD_0_SCK_3, SERCOM_RX_PAD_2, PIO_SERCOM_ALT)
 #endif
+    ) {
+#ifdef KDEBUG
+        Debug.println(F("NeoPixels begin failed"));
+#endif                
+    }
     neopixels->setPixelColor(0, 255 , 0, 0, 0);
     neopixels->setPixelColor(1, 0, 255, 0, 0);
     neopixels->setPixelColor(2, 0, 0, 255, 0);
@@ -92,7 +94,7 @@ void initStrip(word pixel, byte type){
     neopixels->begin(&sercom4, SERCOM4, SERCOM4_DMAC_ID_TX, 22, 23, 24, SPI_PAD_0_SCK_3, SERCOM_RX_PAD_2, PIO_SERCOM_ALT);
 #endif
     neopixels->show();
-    Debug.println(F("initPixel"));
+    println(F("initPixel done"));
 }
 
 void setDayNightValues(bool night){
@@ -119,7 +121,7 @@ void taskDimUpDownStop(byte value){
     byte step = value & DPT3_007_MASK_STEP;
     //true = increase, false = decrease
     bool direction = value & DPT3_007_MASK_DIRECTION;
-    Debug.println(F("value: %d, step: %d, direction: %d"), value, step, direction);
+    println(F("value: %d, step: %d, direction: %d"), value, step, direction);
     //if step == B?????000 then stop
     if(step == DPT3_007_STOP)
         dimmer.taskStop();
@@ -165,7 +167,7 @@ void setAll(byte r, byte g, byte b, byte w){
 }
 
 void setAllHsv(byte h, byte s, byte v){
-    Debug.println(F("setAllHsv H: %d, S: %d, V: %d"), h, s, v);
+    println(F("setAllHsv H: %d, S: %d, V: %d"), h, s, v);
     currentTask = TASK_IDLE; //TASK_IDLE
     byte newRGB[3];
     hsvToRgb(h, s, v, newRGB);
@@ -254,58 +256,35 @@ Message 2 range: 14 - 0 => 7 LEDs, not possible in direct way. Please set LED 0 
 
 void showMessage(){
     //set color only if we are in NOT in WAIT state 
-    if(statusM1 || statusM2 || statusM3 || statusM4){
+    if(statusM){
         //just overlay with messages, animation will do "wipe"
         if(RAINBOW <= currentTask && currentTask <= WHIREMIDDLEOFF){
-            setMessageLeds(ledFirstM1, ledLastM1, newValueM1, ledColorM1);
-            lastValueM1 = newValueM1;
-            setMessageLeds(ledFirstM2, ledLastM2, newValueM2, ledColorM2);
-            lastValueM2 = newValueM2;
+            setMessageLeds(msg[0].ledFirst, msg[0].ledLast, msg[0].newValue, msg[0].ledColor);
+            msg[0].lastValue = msg[0].newValue;
+            setMessageLeds(msg[1].ledFirst, msg[1].ledLast, msg[1].newValue, msg[1].ledColor);
+            msg[1].lastValue = msg[1].newValue;
             pixelsShow = true; //show result 
         }
         //turn Message LEDs on/off if it's not an animation (static color)
         if((ALL_OFF  <= lastTaskBeforeMessage && lastTaskBeforeMessage <= USER_COLOR_5) || 
            (TASK_RGB <= lastTaskBeforeMessage && lastTaskBeforeMessage <= TASK_DIMMER )){
             //"wipe" messages if we will show less message LEDs as before                
-            if(lastValueM1 > newValueM1 || lastValueM2 > newValueM2 || lastValueM3 > newValueM3 || lastValueM4 > newValueM4){
+            if(msg[0].lastValue > msg[0].newValue || msg[1].lastValue > msg[1].newValue || msg[2].lastValue > msg[2].newValue || msg[3].lastValue > msg[3].newValue){
                 setAll(lastStaticColor[R], lastStaticColor[G], lastStaticColor[B], lastStaticColor[W]);
-                Debug.println(F("Messages: set last color: R: %d, G: %d, B: %d, W: %d, statusM2: %d"), lastStaticColor[R], lastStaticColor[G], lastStaticColor[B], lastStaticColor[W], statusM2);
+                println(F("Messages: set last color: R: %d, G: %d, B: %d, W: %d, statusM2: %d"), lastStaticColor[R], lastStaticColor[G], lastStaticColor[B], lastStaticColor[W], statusM & (1<<1));
             }
             //and show messages on top of static color
-            setMessageLeds(ledFirstM1, ledLastM1, newValueM1, ledColorM1);
-            if(statusM1) {
-                statusM1 = false; //set message WAIT state
+            for (byte mc = 0; mc < MESSAGES; mc++) {
+                setMessageLeds(msg[mc].ledFirst, msg[mc].ledLast, msg[mc].newValue, msg[mc].ledColor);
+                if(statusM & (1<<mc)) {
+                    statusM &= ~(1<<mc); //set message WAIT state
 #ifdef KDEBUG
-                Debug.println(F("Message 1: pause routine and wait until TASK will be changed"));
+                    Debug.println(F("Message 1: pause routine and wait until TASK will be changed"));
 #endif                
-                lastValueM1 = newValueM1;
+                    msg[mc].lastValue = msg[mc].newValue;
+                }
             }
-            setMessageLeds(ledFirstM2, ledLastM2, newValueM2, ledColorM2);
-            if(statusM2) {
-                statusM2 = false; //set message WAIT state
-#ifdef KDEBUG
-                Debug.println(F("Message 2: pause routine and wait until TASK will be changed"));
-#endif                
-                lastValueM2 = newValueM2;
-            }
-            setMessageLeds(ledFirstM3, ledLastM3, newValueM3, ledColorM3);
-            if(statusM3) {
-                statusM3 = false; //set message WAIT state
-#ifdef KDEBUG
-                Debug.println(F("Message 3: pause routine and wait until TASK will be changed"));
-#endif                
-                lastValueM3 = newValueM3;
-            }
-            setMessageLeds(ledFirstM4, ledLastM4, newValueM4, ledColorM4);
-            if(statusM4) {
-                statusM4 = false; //set message WAIT state
-#ifdef KDEBUG
-                Debug.println(F("Message 4: pause routine and wait until TASK will be changed"));
-#endif
-                lastValueM4 = newValueM4;
-            }
-        pixelsShow = true; //show result 
+            pixelsShow = true; //show result 
         }
-//       
     }
 }

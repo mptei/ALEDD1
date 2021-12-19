@@ -1,43 +1,34 @@
-/* ---------------------------------------------------------------------------------------------
-ALEDD 0.3.0 beta (work in progress)
-Hardware/Firmware/Sketch/kdevice.xml by E.Burkowski / e.burkowski@konnekting.de, GPL Licensed
-Compatible with: KONNEKTING Device Library 1.0.0 beta 4b
-*/
+#include <Arduino.h>
+#include <knx.h>
 
-/* this libraries are required (click on link and download with library manager):
-FlashStorage:                     http://librarymanager/All#FlashStorage
-DimmerControl:                    http://librarymanager/All#DimmerControl
-Adafruit Neopixel:                http://librarymanager/All#Adafruit_Neopixel 
-Adafruit_ZeroDMA:                 http://librarymanager/All#Zero_DMA
-Adafruit Neopixel ZeroDMA 1.0.8:  http://librarymanager/All#Adafruit_DMA_neopixel_library 
-NeoPixel Painter:                 http://librarymanager/All#NeoPixel_Painter
-KONNEKTING Device Library:        http://librarymanager/All#Konnekting
-*/
+#include "wiring_private.h"
 
-//developer settings
-//#define DEVELOPMENT
-//#define FAKE_EEPROM  //don't use this ;) 
-//#define KDEBUG // comment this line to disable DEBUG mode
-
+#if MASK_VERSION != 0x07B0 && (defined ARDUINO_ARCH_ESP8266 || defined ARDUINO_ARCH_ESP32)
+#include <WiFiManager.h>
+#endif
 
 #include <DimmerControl.h>
 #include <FlashAsEEPROM.h>
 #include <Adafruit_NeoPixel_ZeroDMA.h>
 #include <NeoPixelPainter.h>
 
-#include "src/KonnektingDeviceLibrary/KonnektingDevice.h"
+//#include "kdevice_ALEDD1.h"
+#define LED_STRIP_PIN 22  //LED shield
+#define POWER_SUPPLY_PIN 8 //active low
 
-#include "aledd1.h"
-#include "kdevice_ALEDD1.h"
 #include "defines.h"
 
-#ifdef KDEBUG
-#include "src/KonnektingDeviceLibrary/DebugUtil.h"
-#endif
+// create named references for easy access to group objects
+#define goDimmer knx.getGroupObject(1)
+#define goDimmerRel knx.getGroupObject(2)
+#define goDimmerAbs knx.getGroupObject(3)
+#define goDimmerStatus knx.getGroupObject(4)
+#define goDimmerValueStatus knx.getGroupObject(5)
+#define goScene knx.getGroupObject(6)
+#define goRedVal knx.getGroupObject(7)
+#define goSceneStatus knx.getGroupObject(17)
 
-#ifdef FAKE_EEPROM
-#include "fakeEEPROM.h"
-#endif
+#define goPowerSupply knx.getGroupObject(34)
 
 //global variables
 bool initialized = false;
@@ -103,33 +94,14 @@ word rgbwhsvChangedDelay = 50;
 
 //XML group messages:
 //Message 1
-bool statusM1 = false; //false = wait and do nothing, true = show message1Value
-byte newValueM1 = 0; //0 = all LEDs off, 1-255 corresponds to percentage of leds (255 = all LEDs are on, 127 = only 50% of LEDs are on)
-byte lastValueM1 = 0;
-word ledFirstM1;
-word ledLastM1;
-byte ledColorM1[4] = {0, 0, 0, 0};
-//Message 2
-bool statusM2 = false; //false = wait and do nothing, true = show message1Value
-byte newValueM2 = 0; //0 = all LEDs off, 1-255 corresponds to percentage of leds (255 = all LEDs are on, 128 = only 50% of LEDs are on)
-byte lastValueM2 = 0;
-word ledFirstM2;
-word ledLastM2;
-byte ledColorM2[4] = {0, 0, 0, 0};
-//Message 3
-bool statusM3 = false; //false = wait and do nothing, true = show message1Value
-byte newValueM3 = 0; //0 = all LEDs off, 1-255 corresponds to percentage of leds (255 = all LEDs are on, 127 = only 50% of LEDs are on)
-byte lastValueM3 = 0;
-word ledFirstM3;
-word ledLastM3;
-byte ledColorM3[4] = {0, 0, 0, 0};
-//Message 4
-bool statusM4 = false; //false = wait and do nothing, true = show message1Value
-byte newValueM4 = 0; //0 = all LEDs off, 1-255 corresponds to percentage of leds (255 = all LEDs are on, 128 = only 50% of LEDs are on)
-byte lastValueM4 = 0;
-word ledFirstM4;
-word ledLastM4;
-byte ledColorM4[4] = {0, 0, 0, 0};
+byte statusM = 0;   // a bit for every message, false = wait and do nothing, true = show message1Value
+struct msg {
+    byte newValue; //0 = all LEDs off, 1-255 corresponds to percentage of leds (255 = all LEDs are on, 127 = only 50% of LEDs are on)
+    byte lastValue;
+    word ledFirst;
+    word ledLast;
+    byte ledColor[4];
+} msg[MESSAGES];
 
 //XML group: Power supply control
 bool allLedsOff = true;
@@ -159,230 +131,296 @@ void showPixels ();
 
 #include "hsvrgb.h"
 #include "animations.h"
-
 #include "led_functions.h"
 #include "scenes.h"
-#include "button.h"
 #include "knx_events.h"
 
-void setup() {
-    pinMode(PROG_LED_PIN, OUTPUT);
-    pinMode(PROG_BUTTON_PIN, INPUT_PULLUP);
-    pinMode(POWER_SUPPLY_PIN, INPUT);
-    attachInterrupt(PROG_BUTTON_PIN, progButtonPressed, CHANGE);
+float currentValue = 0;
+float maxValue = 0;
+float minValue = RAND_MAX;
+long lastsend = 0;
 
-#ifdef KDEBUG
+// Setup KNX serial on unusual pins
+class UartKNX : public Uart
+{
+public:
+    UartKNX() : Uart(&sercom2, 3, 1, SERCOM_RX_PAD_1, UART_TX_PAD_2)
+    {
+    }
+    void begin(unsigned long baudrate, uint16_t config)
+    {
+        Uart::begin(baudrate, config);
+        pinPeripheral(3, PIO_SERCOM_ALT);
+        pinPeripheral(1, PIO_SERCOM_ALT);
+    }
+};
+UartKNX SerialKNX;
+//Interrupt handler for SerialKNX
+void SERCOM2_Handler()
+{
+    SerialKNX.IrqHandler();
+}
+
+void setup()
+{
+#ifndef KDEBUG
     SerialUSB.begin(115200);
     while (!SerialUSB);
-    Debug.setPrintStream(&SerialUSB);
-#endif
-#ifdef FAKE_EEPROM
-    initFakeEeprom();
+    ArduinoPlatform::SerialDebug = &SerialUSB;
+#else
+    Serial.begin(115200);
+    ArduinoPlatform::SerialDebug = &Serial;
 #endif
 
-    Konnekting.setMemoryReadFunc(&readMemory);
-    Konnekting.setMemoryWriteFunc(&writeMemory);
-    Konnekting.setMemoryUpdateFunc(&updateMemory);
-    Konnekting.setMemoryCommitFunc(&commitMemory);
-    Konnekting.init(SerialKNX, &progLed, MANUFACTURER_ID, DEVICE_ID, REVISION);
- 
-#ifndef FAKE_EEPROM
-    for (int i = 0; i < Konnekting.getFreeEepromOffset(); i++) {
-        Debug.println(F("\t\twriteMemory(%d,0x%02X);"), i, EEPROM.read(i));
-    }
+    randomSeed(millis());
+
+#if MASK_VERSION != 0x07B0 && (defined ARDUINO_ARCH_ESP8266 || defined ARDUINO_ARCH_ESP32)
+    WiFiManager wifiManager;
+    wifiManager.autoConnect("knx-demo");
 #endif
-    if (!Konnekting.isFactorySetting()){
+
+    // read adress table, association table, groupobject table and parameters from eeprom
+    knx.readMemory();
+
+    // print values of parameters if device is already configured
+    if (knx.configured())
+    {
+        goDimmer.dataPointType(DPT_Switch);
+        goDimmer.callback(dimmSwitchCallback);
+
+        goDimmerRel.dataPointType(DPT_Control_Dimming);
+        goDimmerRel.callback(dimmRelCallback);
+
+        goDimmerAbs.dataPointType(DPT_Percent_U8);
+        goDimmerAbs.callback(dimmAbsCallback);
+
+        goDimmerStatus.dataPointType(DPT_Switch);
+        goDimmerValueStatus.dataPointType(DPT_Percent_U8);
+
+        goScene.dataPointType(DPT_SceneNumber);
+        goScene.callback(sceneCallback);
+
+        goSceneStatus.dataPointType(DPT_SceneNumber);
+        goPowerSupply.dataPointType(DPT_Switch);
+
+#define PARM_ledType            0
+#define PARM_numbersLedsStrip   1
+#define PARM_firstOnValue       5
+#define PARAM_rCorrection       9      
+#define PARAM_gCorrection       13      
+#define PARAM_bCorrection       17
+#define PARAM_wCorrection       21
+#define PARAM_gammaCorrection   25
+#define PARAM_wr                29
+#define PARAM_wg                33
+#define PARAM_wb                37
+
+#define PARAM_timeSoft          41
+#define PARAM_timeRel           42
+#define PARAM_dayMin            43
+#define PARAM_dayMax            47
+#define PARAM_nightMin          51
+#define PARAM_nightMax          55
+
+#define PARAM_uc1r              59
+#define PARAM_uc1g              63
+#define PARAM_uc1b              67
+#define PARAM_uc1w              71
+
+#define PARAM_m1first          139
+#define PARAM_m1last           143
+#define PARAM_m1r              147
+#define PARAM_m1g              151
+#define PARAM_m1b              155
+#define PARAM_m1w              159
+
+#define PARAM_psControl        235
+#define PARAM_psDelay          236
+
         //XML group: LED
-        ledType = Konnekting.getUINT8Param(PARAM_led_type);
+        ledType = knx.paramByte(PARM_ledType);
         if(ledType == NEO_RGB || ledType == NEO_RBG || ledType == NEO_GRB || 
            ledType == NEO_GBR || ledType == NEO_BRG || ledType == NEO_BGR) rgbw = false;
-        numberLeds = Konnekting.getUINT16Param(PARAM_number_leds_strip);
-        firstOnValue = Konnekting.getUINT8Param(PARAM_first_on_value);
-        maxR = Konnekting.getUINT8Param(PARAM_r_correction);
-        maxG = Konnekting.getUINT8Param(PARAM_g_correction);
-        maxB = Konnekting.getUINT8Param(PARAM_b_correction);
-        maxW = Konnekting.getUINT8Param(PARAM_w_correction);
-        gammaCorrection = Konnekting.getUINT8Param(PARAM_gamma_correction) * 0.1;
-        mixedWhite[0] = Konnekting.getUINT8Param(PARAM_wr);
-        mixedWhite[1] = Konnekting.getUINT8Param(PARAM_wg);
-        mixedWhite[2] = Konnekting.getUINT8Param(PARAM_wb);
+        numberLeds = knx.paramInt(PARM_numbersLedsStrip);
+        firstOnValue = knx.paramInt(5);
+        maxR = knx.paramInt(PARAM_rCorrection);
+        maxG = knx.paramInt(PARAM_gCorrection);
+        maxB = knx.paramInt(PARAM_bCorrection);
+        maxW = knx.paramInt(PARAM_wCorrection);
+        gammaCorrection = knx.paramInt(PARAM_gammaCorrection) * 0.1;
+        mixedWhite[0] = knx.paramInt(PARAM_wr);
+        mixedWhite[1] = knx.paramInt(PARAM_wg);
+        mixedWhite[2] = knx.paramInt(PARAM_wb);
         //XML group: Dimmer
-        dimmer.setDurationAbsolute(softOnOffTimeList[Konnekting.getUINT8Param(PARAM_time_soft)] * 100);
-        dimmer.setDurationRelative(relDimTimeList[Konnekting.getUINT8Param(PARAM_time_rel)] * 1000);
+        dimmer.setDurationAbsolute(softOnOffTimeList[knx.paramByte(PARAM_timeSoft)] * 100);
+        dimmer.setDurationRelative(relDimTimeList[knx.paramByte(PARAM_timeRel)] * 1000);
         dimmer.setValueFunction(&setLeds);
-        valueMinDay = Konnekting.getUINT8Param(PARAM_day_min);
-        valueMaxDay = Konnekting.getUINT8Param(PARAM_day_max);
-        valueMinNight = Konnekting.getUINT8Param(PARAM_night_min);
-        valueMaxNight = Konnekting.getUINT8Param(PARAM_night_max);
+        valueMinDay = knx.paramInt(PARAM_dayMin);
+        valueMaxDay = knx.paramInt(PARAM_dayMax);
+        valueMinNight = knx.paramInt(PARAM_nightMin);
+        valueMaxNight = knx.paramInt(PARAM_nightMax);
         //set day values until we know if it is day or night
         setDayNightValues(false);
         //XML group: User colors
+#define UCSIZE (4 * 4)
         for (byte uc = 0; uc < USERCOLORS; uc++) {
-            ucRed[uc]   = Konnekting.getUINT8Param(PARAM_uc1r + 4 * uc);
-            ucGreen[uc] = Konnekting.getUINT8Param(PARAM_uc1g + 4 * uc);
-            ucBlue[uc]  = Konnekting.getUINT8Param(PARAM_uc1b + 4 * uc);
-            ucWhite[uc] = Konnekting.getUINT8Param(PARAM_uc1w + 4 * uc);
+            ucRed[uc]   = knx.paramInt(PARAM_uc1r + UCSIZE * uc);
+            ucGreen[uc] = knx.paramInt(PARAM_uc1g + UCSIZE * uc);
+            ucBlue[uc]  = knx.paramInt(PARAM_uc1b + UCSIZE * uc);
+            ucWhite[uc] = knx.paramInt(PARAM_uc1w + UCSIZE * uc);
         }
-        //XML group: Message 1:
-        ledFirstM1    = Konnekting.getUINT16Param(PARAM_m1first) - 1; //Code: count from 0.., Suite: Count from 1..
-        ledLastM1     = Konnekting.getUINT16Param(PARAM_m1last) - 1;
-        ledColorM1[R] = Konnekting.getUINT8Param(PARAM_m1r);
-        ledColorM1[G] = Konnekting.getUINT8Param(PARAM_m1g);
-        ledColorM1[B] = Konnekting.getUINT8Param(PARAM_m1b);
-        ledColorM1[W] = Konnekting.getUINT8Param(PARAM_m1w);
-        //XML group: Message 2:
-        ledFirstM2    = Konnekting.getUINT16Param(PARAM_m2first) - 1;
-        ledLastM2     = Konnekting.getUINT16Param(PARAM_m2last) - 1;
-        ledColorM2[R] = Konnekting.getUINT8Param(PARAM_m2r);
-        ledColorM2[G] = Konnekting.getUINT8Param(PARAM_m2g);
-        ledColorM2[B] = Konnekting.getUINT8Param(PARAM_m2b);
-        ledColorM2[W] = Konnekting.getUINT8Param(PARAM_m2w);
-        //XML group: Message 3:
-        ledFirstM3    = Konnekting.getUINT16Param(PARAM_m3first) - 1; //Code: count from 0.., Suite: Count from 1..
-        ledLastM3     = Konnekting.getUINT16Param(PARAM_m3last) - 1;
-        ledColorM3[R] = Konnekting.getUINT8Param(PARAM_m3r);
-        ledColorM3[G] = Konnekting.getUINT8Param(PARAM_m3g);
-        ledColorM3[B] = Konnekting.getUINT8Param(PARAM_m3b);
-        ledColorM3[W] = Konnekting.getUINT8Param(PARAM_m3w);
-        //XML group: Message 4:
-        ledFirstM4    = Konnekting.getUINT16Param(PARAM_m4first) - 1;
-        ledLastM4     = Konnekting.getUINT16Param(PARAM_m4last) - 1;
-        ledColorM4[R] = Konnekting.getUINT8Param(PARAM_m4r);
-        ledColorM4[G] = Konnekting.getUINT8Param(PARAM_m4g);
-        ledColorM4[B] = Konnekting.getUINT8Param(PARAM_m4b);
-        ledColorM4[W] = Konnekting.getUINT8Param(PARAM_m4w);
+        //XML group: Messages:
+#define MSGSIZE (6 * 4)
+        for (byte mc = 0; mc < MESSAGES; mc++) {
+            msg[mc].ledFirst    = knx.paramInt(PARAM_m1first + MSGSIZE * mc) - 1; //Code: count from 0.., Suite: Count from 1..
+            msg[mc].ledLast     = knx.paramInt(PARAM_m1last + MSGSIZE * mc) - 1;
+            msg[mc].ledColor[R] = knx.paramInt(PARAM_m1r + MSGSIZE * mc);
+            msg[mc].ledColor[G] = knx.paramInt(PARAM_m1g + MSGSIZE * mc);
+            msg[mc].ledColor[B] = knx.paramInt(PARAM_m1b + MSGSIZE * mc);
+            msg[mc].ledColor[W] = knx.paramInt(PARAM_m1w + MSGSIZE * mc);
+        }
         //XML group: power supply
-        powerSupplyControl = Konnekting.getUINT8Param(PARAM_ps_control);
-        powerSupplyOffDelay = Konnekting.getUINT8Param(PARAM_ps_delay_off) * 60000;
+        powerSupplyControl = knx.paramByte(PARAM_psControl);
+        powerSupplyOffDelay = knx.paramInt(PARAM_psDelay) * 60000;
         if(!powerSupplyControl){
             powerSupplyState = true;
         }
-#ifdef KDEBUG
-        Debug.println(F("User Colors:"));
-        Debug.println(F("Idx\tR\tG\tB\tW"));
-        for (byte uc = 0; uc < USERCOLORS; uc++) {
-            Debug.println(F("%d\t%d\t%d\t%d\t%d"),uc,ucRed[uc],ucGreen[uc],ucBlue[uc],ucWhite[uc]);
-        }
-        Debug.println(F("Message 1: first LED: %d, last LED: %d, R: %d, G: %d, B: %d, W: %d"), ledFirstM1, ledLastM1, ledColorM1[R], ledColorM1[G], ledColorM1[B], ledColorM1[W]);
-        Debug.println(F("Message 2: first LED: %d, last LED: %d, R: %d, G: %d, B: %d, W: %d"), ledFirstM2, ledLastM2, ledColorM2[R], ledColorM2[G], ledColorM2[B], ledColorM2[W]);
-        Debug.println(F("Message 3: first LED: %d, last LED: %d, R: %d, G: %d, B: %d, W: %d"), ledFirstM3, ledLastM3, ledColorM3[R], ledColorM3[G], ledColorM3[B], ledColorM3[W]);
-        Debug.println(F("Message 4: first LED: %d, last LED: %d, R: %d, G: %d, B: %d, W: %d"), ledFirstM4, ledLastM4, ledColorM4[R], ledColorM4[G], ledColorM4[B], ledColorM4[W]);
-#endif
+        println(F("LED_Type: 0x%02x"), ledType);
+        println(F("LED_Count: %d"), numberLeds);
+        println(F("Gamma: %f"), gammaCorrection);
+
         setDimmingCurves();
         initStrip(numberLeds, ledType);
     }
-    Debug.println(F("free ram: %d bytes"), Debug.freeRam());
-    Debug.println(F("Setup ready"));
-  
-    if (Konnekting.isFactorySetting())
-    {
-        Debug.println(F("Device is in factory mode. Starting programming mode..."));
+
+    // pin or GPIO the programming led is connected to. Default is LED_BUILTIN
+    knx.ledPin(LED_BUILTIN);
+    // is the led active on HIGH or low? Default is LOW
+    knx.ledPinActiveOn(HIGH);
+    // pin or GPIO programming button is connected to. Default is 0
+    // knx.buttonPin(0);
+    knx.platform().knxUart(&SerialKNX);
+
+    // start the framework.
+    knx.start();
+
+    if (!knx.configured()) {
         testStrip();
-        Konnekting.setProgState(true);
-        Debug.println(F("free ram: %d bytes"), Debug.freeRam());
+
+        // Go into programming mode by default
+        knx.progMode(true);
     }
 }
 
 void powerSupply(){
     if(powerSupplyControl){
         if(!lastStaticColor[R] && !lastStaticColor[G] && !lastStaticColor[B] && !lastStaticColor[W] &&
-           !lastValueM1 && !lastValueM2 && !lastValueM3 && !lastValueM4 && currentTask == TASK_IDLE){
+           !msg[0].lastValue && !msg[1].lastValue && !msg[2].lastValue && !msg[3].lastValue && currentTask == TASK_IDLE){
             allLedsOff = true;
         }else{
             allLedsOff = false;
         }
         if(powerSupplyTurnOn && !powerSupplyState){
-            Knx.write(COMOBJ_power_supply, DPT1_001_on);
-            Debug.println(F("Turn PS on!"));
+            goPowerSupply.value(true);
+            println(F("Turn PS on!"));
             powerSupplyTurnOn = false;
         }
         if(powerSupplyState && allLedsOff && !powerSupplyTurnOff){//power supply is on and all LEDs are off => start to 'turn off power supply' routine
             powerSupplyTurnOff = true;
             powerSupplyOffMillis = millis();
-            Debug.println(F("All LEDs are off, start 'turn off power supply' routine"));
+            println(F("All LEDs are off, start 'turn off power supply' routine"));
         }
         if(powerSupplyState && !allLedsOff && powerSupplyTurnOff){//power supply is on and some LEDs are on => PS stays on
             powerSupplyTurnOff = false;
-            Debug.println(F("Some LEDs are on, stop 'turn off power supply' routine"));
+            println(F("Some LEDs are on, stop 'turn off power supply' routine"));
         }
         if(!powerSupplyState && allLedsOff && powerSupplyTurnOff){//stop "power off" routine, PS is already off
-            Debug.println(F("All LEDs are off, Power Supply is also off, stop 'turn off power supply' routine"));
+            println(F("All LEDs are off, Power Supply is also off, stop 'turn off power supply' routine"));
             powerSupplyTurnOff = false;
         }
         if(powerSupplyTurnOff && (millis() - powerSupplyOffMillis) >= powerSupplyOffDelay){
-            Debug.println(F("Time is over, turn PS off"));
-            Knx.write(COMOBJ_power_supply, DPT1_001_off);
+            println(F("Time is over, turn PS off"));
+            goPowerSupply.value(false);
             powerSupplyTurnOff = false;
         }
     }
 }
 
-void loop() {
-    Knx.task();
-    if (Konnekting.isReadyForApplication()) {
-        if(psStateChecked && millis() - psStateCheckedMillis >= 100){ //debounce
-            psStateChecked = false;
-        }
-        if(!psStateChecked){
-            powerSupplyState = !digitalRead(POWER_SUPPLY_PIN); //low = ON, high = OFF
-            psStateCheckedMillis = millis();
-            psStateChecked = true;
-            if(lastState != powerSupplyState){
-                lastState = powerSupplyState;
-                Debug.println(F("PowerSupply state: %d"), powerSupplyState);
-            }
-        }
 
-        if(powerSupplyState) { //wait until PS is on...
-            dimmer.task();
-            taskFunction();
-        }
-        powerSupply();
-        if(rgbwChanged){
-            if(millis() - rgbwChangedMillis > rgbwhsvChangedDelay && !acceptNewRGBW){
-                Debug.println(F("apply new rgb(w) values"));
-                Debug.println(F("newRGBW R: %d, G: %d, B: %d, W: %d"), newRGBW[R], newRGBW[G], newRGBW[B], newRGBW[W]);
-                Debug.println(F("valuesRGBW R: %d, G: %d, B: %d, W: %d \n"), valuesRGBW[R], valuesRGBW[G], valuesRGBW[B], valuesRGBW[W]);
+void loop()
+{
+    // don't delay here to much. Otherwise you might lose packages or mess up the timing with ETS
+    knx.loop();
 
-                valuesRGBW[R] = newRGBW[R];
-                valuesRGBW[G] = newRGBW[G];
-                valuesRGBW[B] = newRGBW[B];
-                valuesRGBW[W] = newRGBW[W];
-                acceptNewRGBW = true;
-            }
-        }
-        if(hsvChanged){
-            if(millis() - hsvChangedMillis > rgbwhsvChangedDelay && !acceptNewHSV){
-                Debug.println(F("apply new hsv values"));
+    // only run the application code if the device was configured with ETS
+    if (!knx.configured())
+        return;
 
-                valuesHSV[0] = newHSV[0];
-                valuesHSV[1] = newHSV[1];
-                valuesHSV[2] = newHSV[2];
-                acceptNewHSV = true;
-            }
+    if (psStateChecked && millis() - psStateCheckedMillis >= 100)
+    { //debounce
+        psStateChecked = false;
+    }
+    if (!psStateChecked)
+    {
+        powerSupplyState = 1; //!digitalRead(POWER_SUPPLY_PIN); //low = ON, high = OFF
+        psStateCheckedMillis = millis();
+        psStateChecked = true;
+        if (lastState != powerSupplyState)
+        {
+            lastState = powerSupplyState;
+            println(F("PowerSupply state: %d"), powerSupplyState);
         }
-        if (dimmer.updateAvailable()) {
-            if (dimmer.getCurrentValue()) {
-                Knx.write(COMOBJ_dim_state, DPT1_001_on); //state = on
-                Debug.println(F("Send to Obj: %d value: 1"), COMOBJ_dim_state);
-                //if one of channels is on... all can't be off
-                //                  allChannelsOff = false;
-            } else {
-                Knx.write(COMOBJ_dim_state, DPT1_001_off); //state = off
-                Debug.println(F("Send to Obj: %d value: 0"), COMOBJ_dim_state);
-                //if one of channels is off... all can't be on
-                //                  allChannelsOn = false;
-				    sendSceneNumber = 0; //all off
-            }
-            Knx.write(COMOBJ_dim_value, dimmer.getCurrentValue());
-            Debug.println(F("Send to Obj: %d value: %d"), COMOBJ_dim_value, dimmer.getCurrentValue());
-			      lastDimmerValue = dimmer.getCurrentValue();
-            dimmer.resetUpdateFlag();
+    }
+
+    if (powerSupplyState)
+    { //wait until PS is on...
+        dimmer.task();
+        taskFunction();
+    }
+    powerSupply();
+    if (rgbwChanged)
+    {
+        if (millis() - rgbwChangedMillis > rgbwhsvChangedDelay && !acceptNewRGBW)
+        {
+            println(F("apply new rgb(w) values"));
+            println(F("newRGBW R: %d, G: %d, B: %d, W: %d"), newRGBW[R], newRGBW[G], newRGBW[B], newRGBW[W]);
+            println(F("valuesRGBW R: %d, G: %d, B: %d, W: %d \n"), valuesRGBW[R], valuesRGBW[G], valuesRGBW[B], valuesRGBW[W]);
+
+            valuesRGBW[R] = newRGBW[R];
+            valuesRGBW[G] = newRGBW[G];
+            valuesRGBW[B] = newRGBW[B];
+            valuesRGBW[W] = newRGBW[W];
+            acceptNewRGBW = true;
         }
-    		if(sendSceneNumber < 64){
-            Debug.println(F("Send to Obj: %d value: %d"), COMOBJ_scene_state, sendSceneNumber);
-      			Knx.write(COMOBJ_scene_state, sendSceneNumber);
-      			sendSceneNumber = 0xFF;
-    		}
+    }
+    if (hsvChanged)
+    {
+        if (millis() - hsvChangedMillis > rgbwhsvChangedDelay && !acceptNewHSV)
+        {
+            println(F("apply new hsv values"));
+
+            valuesHSV[0] = newHSV[0];
+            valuesHSV[1] = newHSV[1];
+            valuesHSV[2] = newHSV[2];
+            acceptNewHSV = true;
+        }
+    }
+    if (dimmer.updateAvailable())
+    {
+        goDimmerStatus.value(dimmer.getCurrentValue());
+        println(F("Send dimmer status: %d"), dimmer.getCurrentValue() != 0);
+        if (!dimmer.getCurrentValue()) {
+            sendSceneNumber = 0; //all off
+        }
+        goDimmerValueStatus.value(dimmer.getCurrentValue());
+        println(F("Send dimmer value status: %d"), dimmer.getCurrentValue());
+        lastDimmerValue = dimmer.getCurrentValue();
+        dimmer.resetUpdateFlag();
+    }
+    if (sendSceneNumber < 64)
+    {
+        println(F("Send scene status: %d"), sendSceneNumber);
+        goSceneStatus.value(sendSceneNumber);
+        sendSceneNumber = 0xFF;
     }
 }
