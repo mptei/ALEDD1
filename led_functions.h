@@ -131,33 +131,37 @@ void taskNewValue(byte value){
     dimmer.taskNewValue(value);
 }
 
-void setAll(byte r, byte g, byte b, byte w){
+void setAll(const byte colors[]){
     currentTask = TASK_IDLE; //TASK_IDLE
     //staticColorReady = true;
+    byte corrected[4];
     //if we have RGB only, try to display mixed white
-    if(!rgbw && w != 0 && r == 0 && g == 0 && b == 0){
-        r = getLogValue(w, gammaCorrection, 1, mixedWhite[0], 256);
-        g = getLogValue(w, gammaCorrection, 1, mixedWhite[1], 256);
-        b = getLogValue(w, gammaCorrection, 1, mixedWhite[2], 256);
-        w = 0;
-    }
-    if(rgbw){
-        r = curveR[r];
-        g = curveG[g];
-        b = curveB[b];
-        w = curveW[w];
+    if(!rgbw) {
+        if (colors[W] != 0 && colors[R] == 0 && colors[G] == 0 && colors[B] == 0) {
+            for (byte col = R; col < W; col++) {
+                corrected[col] = getLogValue(colors[W], gammaCorrection, 1, mixedWhite[col], 256);
+            }
+            corrected[W] = 0;
+        } else {
+            corrected[R] = curveR[colors[R]];
+            corrected[G] = curveG[colors[G]];
+            corrected[B] = curveB[colors[B]];
+            corrected[W] = 0;
+        }
+    } else {
+        corrected[R] = curveR[colors[R]];
+        corrected[G] = curveG[colors[G]];
+        corrected[B] = curveB[colors[B]];
+        corrected[W] = curveW[colors[W]];
     }
 #ifdef KDEBUG
     Debug.println(F("setAll log: R: %d, G: %d, B: %d, W: %d, HEX: 0x%02x 0x%02x 0x%02x 0x%02x"),r,g,b,w,r,g,b,w);
 #endif
     for(int i = 0; i < numberLeds; i++){
-        neopixels->setPixelColor(i, r, g, b, w);
+        neopixels->setPixelColor(i, corrected[R], corrected[G], corrected[B], corrected[W]);
     }
     //save color, we need it for messages
-    lastStaticColor[R] = r;
-    lastStaticColor[G] = g;
-    lastStaticColor[B] = b;
-    lastStaticColor[W] = w;
+    memcpy(lastStaticColor, corrected, sizeof(corrected));
     pixelsShow = true;
 }
 
@@ -175,14 +179,14 @@ void setAllHsv(byte h, byte s, byte v){
 
 //function to set LED-Values
 void setLeds(byte value){
-    setAll(0, 0, 0, value);
+    byte color[] = {0,0,0, value};
+    setAll(color);
 //    Debug.println(F("setLeds %d"),index);
 }
 
 void setBrightness(byte value){
     neopixels->setBrightness(value);
     pixelsShow = true;
-    println(F("setBrightness %d"),value);
 }
 
 //function to set LED-values via dimmer library
@@ -260,20 +264,23 @@ void showMessage(){
     if(statusM){
         //just overlay with messages, animation will do "wipe"
         if(RAINBOW <= currentTask && currentTask <= WHIREMIDDLEOFF){
-            setMessageLeds(msg[0].ledFirst, msg[0].ledLast, msg[0].newValue, msg[0].ledColor);
-            msg[0].lastValue = msg[0].newValue;
-            setMessageLeds(msg[1].ledFirst, msg[1].ledLast, msg[1].newValue, msg[1].ledColor);
-            msg[1].lastValue = msg[1].newValue;
+            for (byte mc = 0; mc < MESSAGES; mc++) {
+                setMessageLeds(msg[mc].ledFirst, msg[mc].ledLast, msg[mc].newValue, msg[mc].ledColor);
+                msg[mc].lastValue = msg[mc].newValue;
+            }
             pixelsShow = true; //show result 
         }
         //turn Message LEDs on/off if it's not an animation (static color)
         if((ALL_OFF  <= lastTaskBeforeMessage && lastTaskBeforeMessage <= USER_COLOR_5) || 
            (TASK_RGB <= lastTaskBeforeMessage && lastTaskBeforeMessage <= TASK_DIMMER )){
-            //"wipe" messages if we will show less message LEDs as before                
-            if(msg[0].lastValue > msg[0].newValue || msg[1].lastValue > msg[1].newValue || msg[2].lastValue > msg[2].newValue || msg[3].lastValue > msg[3].newValue){
-                setAll(lastStaticColor[R], lastStaticColor[G], lastStaticColor[B], lastStaticColor[W]);
-                println(F("Messages: set last color: R: %d, G: %d, B: %d, W: %d, statusM2: %d"), lastStaticColor[R], lastStaticColor[G], lastStaticColor[B], lastStaticColor[W], statusM & (1<<1));
-            }
+            //"wipe" messages if we will show any less message LEDs as before
+            for (byte mc = 0; mc < MESSAGES; mc++) {
+                if (msg[mc].lastValue > msg[mc].newValue) {
+                    setAll(lastStaticColor);
+                    println(F("Messages: set last color: R: %d, G: %d, B: %d, W: %d, statusM2: %d"), lastStaticColor[R], lastStaticColor[G], lastStaticColor[B], lastStaticColor[W], statusM & (1<<1));
+                    break;
+                }
+            }            
             //and show messages on top of static color
             for (byte mc = 0; mc < MESSAGES; mc++) {
                 setMessageLeds(msg[mc].ledFirst, msg[mc].ledLast, msg[mc].newValue, msg[mc].ledColor);

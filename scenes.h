@@ -11,47 +11,39 @@ void taskFunction(){
 
     switch(currentTask){
         case ALL_OFF:
-            setAll(0,0,0,0);
+            setLeds(0);
             break;
         case WHITE:
-            setAll(0,0,0,255);
+            setLeds(255);
             break;
         case RED:
-            setAll(255,0,0,0);
+            setAll(red);
             break;
         case YELLOW:
-            setAll(255,255,0,0);
+            setAll(yellow);
 			      break;
         case GREEN:
-            setAll(0,255,0,0);
+            setAll(green);
             break;
         case CYAN:
-            setAll(0,255,255,0);
+            setAll(cyan);
             break;
         case BLUE:
-            setAll(0,0,255,0);
+            setAll(blue);
             break;
         case PURPLE:
-            setAll(255,0,255,0);
+            setAll(purple);
             break;
         case ORANGE:
-            setAll(255,81,0,0);
+            setAll(orange);
             break;
 
         case USER_COLOR_1:
-            setAll(ucRed[0],ucGreen[0],ucBlue[0],ucWhite[0]);
-            break;
         case USER_COLOR_2:
-            setAll(ucRed[1],ucGreen[1],ucBlue[1],ucWhite[1]);
-            break;
         case USER_COLOR_3:
-            setAll(ucRed[2],ucGreen[2],ucBlue[2],ucWhite[2]);
-            break;
         case USER_COLOR_4:
-            setAll(ucRed[3],ucGreen[3],ucBlue[3],ucWhite[3]);
-            break;
         case USER_COLOR_5:
-            setAll(ucRed[4],ucGreen[4],ucBlue[4],ucWhite[4]);
+            setAll(userColors[currentTask-USER_COLOR_1]);
             break;
             
         case RAINBOW:
@@ -91,7 +83,7 @@ void taskFunction(){
         case TASK_RGB:
             if(acceptNewRGBW){
 //                Debug.println(F("valuesRGBW R: %d, G: %d, B: %d, W: %d"),valuesRGBW[R],valuesRGBW[G],valuesRGBW[B],valuesRGBW[W]);
-                setAll(valuesRGBW[R], valuesRGBW[G], valuesRGBW[B], valuesRGBW[W]);
+                setAll(valuesRGBW);
                 acceptNewRGBW = false;
                 rgbwChanged = false;
                 //reset color because of time out (acceptNewRGBW)
@@ -105,7 +97,7 @@ void taskFunction(){
             if(acceptNewRGBW){
                 //first 12 bits are not defined, 4 bits ignored
                 println(F("valuesRGBW R: %d, G: %d, B: %d, W: %d"), valuesRGBW[R], valuesRGBW[G], valuesRGBW[B], valuesRGBW[W]);
-                setAll(valuesRGBW[R], valuesRGBW[G], valuesRGBW[B], valuesRGBW[W]);
+                setAll(valuesRGBW);
                 acceptNewRGBW = false;
                 rgbwChanged = false;
                 println(F("TASK_RGBW done"));
@@ -119,7 +111,7 @@ void taskFunction(){
             }
             break;
         case TASK_DIMMER:
-            setAll(0, 0, 0, lastDimmerValue);
+            setLeds(lastDimmerValue);
             break;
            
         case TASK_IDLE:

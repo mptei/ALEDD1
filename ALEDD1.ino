@@ -24,12 +24,32 @@
 #define goDimmerAbs knx.getGroupObject(3)
 #define goDimmerStatus knx.getGroupObject(4)
 #define goDimmerValueStatus knx.getGroupObject(5)
+
 #define goScene knx.getGroupObject(6)
 #define goRedVal knx.getGroupObject(7)
-#define goSceneStatus knx.getGroupObject(17)
+#define goGreenVal knx.getGroupObject(8)
+#define goBlueVal knx.getGroupObject(9)
+#define goWhiteVal knx.getGroupObject(10)
+
 #define goRGBW knx.getGroupObject(12)
 
+#define goSceneStatus knx.getGroupObject(17)
+
+#define MSGGOSIZE 4
+#define goMsgSwitch(NUM) knx.getGroupObject(18+NUM*MSGGOSIZE)
+#define goMsgPercent(NUM) knx.getGroupObject(19+NUM*MSGGOSIZE)
+#define goMsgRGB(NUM) knx.getGroupObject(20+NUM*MSGGOSIZE)
+#define goMsgRGBW(NUM) knx.getGroupObject(21+NUM*MSGGOSIZE)
+
 #define goPowerSupply knx.getGroupObject(34)
+
+const byte red[] = {255,0,0,0};
+const byte yellow[] = {255,0,0,0};
+const byte green[] = {0,255,0,0};
+const byte cyan[] = {0,255,255,0};
+const byte blue[] = {0,0,255,0};
+const byte purple[] = {255,0,255,0};
+const byte orange[] = {255,81,0,0};
 
 //global variables
 bool initialized = false;
@@ -75,6 +95,7 @@ byte valueMaxNight;
 //XML group: Scenes
 byte scene[64];
 //XML group: User color 1-5
+byte userColors[USERCOLORS][4];
 byte ucRed[USERCOLORS];
 byte ucGreen[USERCOLORS];
 byte ucBlue[USERCOLORS];
@@ -201,11 +222,31 @@ void setup()
         goScene.dataPointType(DPT_SceneNumber);
         goScene.callback(sceneCallback);
 
+        goRedVal.dataPointType(DPT_Percent_U8);
+        goRedVal.callback(redValCallback);
+        goGreenVal.dataPointType(DPT_Percent_U8);
+        goGreenVal.callback(greenValCallback);
+        goBlueVal.dataPointType(DPT_Percent_U8);
+        goBlueVal.callback(blueValCallback);
+        goWhiteVal.dataPointType(DPT_Percent_U8);
+        goWhiteVal.callback(whiteValCallback);
+
         goRGBW.dataPointType(DPT_Colour_RGBW);
         goRGBW.callback(rgbwCallback);
 
         goSceneStatus.dataPointType(DPT_SceneNumber);
         goPowerSupply.dataPointType(DPT_Switch);
+
+        for (byte mc = 0; mc < MESSAGES; mc++) {
+            goMsgSwitch(mc).dataPointType(DPT_Switch);
+            goMsgSwitch(mc).callback(msgCallback);
+            goMsgPercent(mc).dataPointType(DPT_Percent_U8);
+            goMsgPercent(mc).callback(msgCallback);
+            goMsgRGB(mc).dataPointType(DPT_Colour_RGB);
+            goMsgRGB(mc).callback(msgCallback);
+            goMsgRGBW(mc).dataPointType(DPT_Colour_RGBW);
+            goMsgRGBW(mc).callback(msgCallback);
+        }
 
 #define PARM_ledType            0
 #define PARM_numbersLedsStrip   1
@@ -269,10 +310,9 @@ void setup()
         //XML group: User colors
 #define UCSIZE (4 * 4)
         for (byte uc = 0; uc < USERCOLORS; uc++) {
-            ucRed[uc]   = knx.paramInt(PARAM_uc1r + UCSIZE * uc);
-            ucGreen[uc] = knx.paramInt(PARAM_uc1g + UCSIZE * uc);
-            ucBlue[uc]  = knx.paramInt(PARAM_uc1b + UCSIZE * uc);
-            ucWhite[uc] = knx.paramInt(PARAM_uc1w + UCSIZE * uc);
+            for (byte col = R; col <= W; col++) {
+                userColors[uc][col]   = knx.paramInt(PARAM_uc1r + uc * UCSIZE + col * 4);    
+            }
         }
         //XML group: Messages:
 #define MSGSIZE (6 * 4)
@@ -297,7 +337,7 @@ void setup()
         setDimmingCurves();
         initStrip(numberLeds, ledType);
         // White by default
-        setAll(0,0,0,0xff);
+        setLeds(0xff);
         // Off by default
         neopixels->setBrightness(0);
         pixelsShow = true;
