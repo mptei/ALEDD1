@@ -131,37 +131,42 @@ void taskNewValue(byte value){
     dimmer.taskNewValue(value);
 }
 
-void setAll(const byte colors[]){
-    currentTask = TASK_IDLE; //TASK_IDLE
-    //staticColorReady = true;
-    byte corrected[4];
+color_t colorCorrection(color_t color) {
+    color_t corrected;
     //if we have RGB only, try to display mixed white
     if(!rgbw) {
-        if (colors[W] != 0 && colors[R] == 0 && colors[G] == 0 && colors[B] == 0) {
-            for (byte col = R; col < W; col++) {
-                corrected[col] = getLogValue(colors[W], gammaCorrection, 1, mixedWhite[col], 256);
-            }
-            corrected[W] = 0;
+        if (color.c.w && !(color.rgbw & COLORMASK)) {
+            corrected.c.r = getLogValue(color.c.w, gammaCorrection, 1, mixedWhite.c.r, 256);
+            corrected.c.g = getLogValue(color.c.w, gammaCorrection, 1, mixedWhite.c.g, 256);
+            corrected.c.b = getLogValue(color.c.w, gammaCorrection, 1, mixedWhite.c.b, 256);
+            corrected.c.w = 0;
         } else {
-            corrected[R] = curveR[colors[R]];
-            corrected[G] = curveG[colors[G]];
-            corrected[B] = curveB[colors[B]];
-            corrected[W] = 0;
+            corrected.c.r = curveR[color.c.r];
+            corrected.c.g = curveG[color.c.g];
+            corrected.c.b = curveB[color.c.b];
+            corrected.c.w = 0;
         }
     } else {
-        corrected[R] = curveR[colors[R]];
-        corrected[G] = curveG[colors[G]];
-        corrected[B] = curveB[colors[B]];
-        corrected[W] = curveW[colors[W]];
+            corrected.c.r = curveR[color.c.r];
+            corrected.c.g = curveG[color.c.g];
+            corrected.c.b = curveB[color.c.b];
+            corrected.c.w = curveW[color.c.w];
     }
+    return corrected;
+}
+
+void setAll(color_t color){
+    currentTask = TASK_IDLE; //TASK_IDLE
+    //staticColorReady = true;
+    color_t corrected = colorCorrection(color);
 #ifdef KDEBUG
     Debug.println(F("setAll log: R: %d, G: %d, B: %d, W: %d, HEX: 0x%02x 0x%02x 0x%02x 0x%02x"),r,g,b,w,r,g,b,w);
 #endif
     for(int i = 0; i < numberLeds; i++){
-        neopixels->setPixelColor(i, corrected[R], corrected[G], corrected[B], corrected[W]);
+        neopixels->setPixelColor(i, corrected.rgbw);
     }
     //save color, we need it for messages
-    memcpy(lastStaticColor, corrected, sizeof(corrected));
+    lastStaticColor = corrected;
     pixelsShow = true;
 }
 
@@ -179,7 +184,7 @@ void setAllHsv(byte h, byte s, byte v){
 
 //function to set LED-Values
 void setLeds(byte value){
-    byte color[] = {0,0,0, value};
+    color_t color = {.c={0,0,0,value}};
     setAll(color);
 //    Debug.println(F("setLeds %d"),index);
 }
@@ -212,7 +217,7 @@ this function overrides selected pixels with specific color
 attention: if message color matches current stripe color, it's not possible to identify message state
 */
 
-void setMessageLeds(word firstLed, word lastLed, byte newValue, byte newColor[4]){
+void setMessageLeds(word firstLed, word lastLed, byte newValue, color_t newColor){
 /*
   we can display up to 2 messages on a single strip
   each message has it own stripe range
@@ -236,23 +241,24 @@ Message 2 range: 14 - 0 => 7 LEDs, not possible in direct way. Please set LED 0 
                  if LED 0 will be set as 0, than the range will be 15 LEDs: 14,13,12...2,1,0
 
 */
+    color_t corrected = colorCorrection(newColor);
     if(newValue){ //if 0, do nothing, we've allready wiped with animation or static color
         if(lastLed >= firstLed){
             word amount = (lastLed - firstLed + 1) * newValue / 255; //round up //floor()
             for(word led = firstLed; led < firstLed + amount; led++){
                 if(led < numberLeds) {
-                    neopixels->setPixelColor(led, newColor[R], newColor[G], newColor[B], newColor[W]);
+                    neopixels->setPixelColor(led, corrected.c.r, corrected.c.g, corrected.c.b, corrected.c.w);
                 }else{
-                    neopixels->setPixelColor(led - numberLeds, newColor[R], newColor[G], newColor[B], newColor[W]); //see examples
+                    neopixels->setPixelColor(led - numberLeds, corrected.c.r, corrected.c.g, corrected.c.b, corrected.c.w); //see examples
                 }
             }
         }else{//firstLed > lastLed
             word amount = ceil((firstLed - lastLed + 1) * newValue / 255); //round up //floor()
             for(word led = firstLed; led > firstLed - amount; led--){
                 if(led < numberLeds) {
-                    neopixels->setPixelColor(led, newColor[R], newColor[G], newColor[B], newColor[W]);
+                    neopixels->setPixelColor(led, corrected.c.r, corrected.c.g, corrected.c.b, corrected.c.w);
                 }else{
-                    neopixels->setPixelColor(led - numberLeds, newColor[R], newColor[G], newColor[B], newColor[W]); //see examples
+                    neopixels->setPixelColor(led - numberLeds, corrected.c.r, corrected.c.g, corrected.c.b, corrected.c.w); //see examples
                 }
             }
         }
@@ -277,7 +283,7 @@ void showMessage(){
             for (byte mc = 0; mc < MESSAGES; mc++) {
                 if (msg[mc].lastValue > msg[mc].newValue) {
                     setAll(lastStaticColor);
-                    println(F("Messages: set last color: R: %d, G: %d, B: %d, W: %d, statusM2: %d"), lastStaticColor[R], lastStaticColor[G], lastStaticColor[B], lastStaticColor[W], statusM & (1<<1));
+                    println(F("Messages: set last color: R: %d, G: %d, B: %d, W: %d, statusM2: %d"), lastStaticColor.c.r, lastStaticColor.c.g, lastStaticColor.c.b, lastStaticColor.c.w, statusM & (1<<1));
                     break;
                 }
             }            

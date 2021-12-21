@@ -43,20 +43,34 @@
 
 #define goPowerSupply knx.getGroupObject(34)
 
-const byte red[] = {255,0,0,0};
-const byte yellow[] = {255,0,0,0};
-const byte green[] = {0,255,0,0};
-const byte cyan[] = {0,255,255,0};
-const byte blue[] = {0,0,255,0};
-const byte purple[] = {255,0,255,0};
-const byte orange[] = {255,81,0,0};
+typedef union {
+    uint32_t rgbw;
+    struct {
+        uint8_t b;
+        uint8_t g;
+        uint8_t r;
+        uint8_t w;
+    } c;
+} color_t;
+#define COLOR(R,G,B,W) {.c={(B),(G),(R),(W)}}
+#define COLORMASK 0x00FFFFFFUL
+
+const color_t black = COLOR(0,0,0,0);
+const color_t white = COLOR(255,255,255,0);
+const color_t red = COLOR(255,0,0,0);
+const color_t yellow = COLOR(255,0,0,0);
+const color_t green = COLOR(0,255,0,0);
+const color_t cyan = COLOR(0,255,255,0);
+const color_t blue = COLOR(0,0,255,0);
+const color_t purple = COLOR(255,0,255,0);
+const color_t orange = COLOR(255,81,0,0);
 
 //global variables
 bool initialized = false;
 byte currentTask = TASK_IDLE; //0xFE - idle
 byte lastTask = TASK_IDLE;
 byte lastTaskBeforeMessage = 0; // all LEDs are off
-byte lastStaticColor[4] = {0, 0, 0, 0};
+color_t lastStaticColor = black;
 bool staticColorReady = false;
 byte sendSceneNumber = 0xFF;
 byte lastDimmerValue = 0;
@@ -76,7 +90,7 @@ bool pixelsShow = false;
 //XML group: LED
 uint8_t ledType = 0xC6; // ~ NEO_RGBW, see Adafruit_NeoPixel.h for more infos
 bool rgbw = true;
-byte mixedWhite[] = {255,240,224};
+color_t mixedWhite = COLOR(255,240,224,0);
 uint16_t numberLeds = 600; //amount of leds on a stripe
 uint8_t firstOnValue = 1;
 uint8_t maxR = 255; // to match the same brightness on different colors
@@ -95,15 +109,11 @@ byte valueMaxNight;
 //XML group: Scenes
 byte scene[64];
 //XML group: User color 1-5
-byte userColors[USERCOLORS][4];
-byte ucRed[USERCOLORS];
-byte ucGreen[USERCOLORS];
-byte ucBlue[USERCOLORS];
-byte ucWhite[USERCOLORS];
+color_t userColors[USERCOLORS];
 byte new3Byte[3] = {0,0,0};
 byte new6Byte[6] = {0,0,0,0,0,0};
-byte newRGBW[4] = {0,0,0,0};
-byte valuesRGBW[4] = {0,0,0,0};
+color_t newRGBW;
+color_t valuesRGBW;
 byte newHSV[3] = {0,0,0};
 byte valuesHSV[3] = {0,0,0};
 bool rgbwChanged = false;
@@ -122,7 +132,7 @@ struct msg {
     byte lastValue;
     word ledFirst;
     word ledLast;
-    byte ledColor[4];
+    color_t ledColor;
 } msg[MESSAGES];
 
 //XML group: Power supply control
@@ -293,9 +303,9 @@ void setup()
         maxB = knx.paramInt(PARAM_bCorrection);
         maxW = knx.paramInt(PARAM_wCorrection);
         gammaCorrection = knx.paramInt(PARAM_gammaCorrection) * 0.1;
-        mixedWhite[0] = knx.paramInt(PARAM_wr);
-        mixedWhite[1] = knx.paramInt(PARAM_wg);
-        mixedWhite[2] = knx.paramInt(PARAM_wb);
+        mixedWhite.c.r = knx.paramInt(PARAM_wr);
+        mixedWhite.c.g = knx.paramInt(PARAM_wg);
+        mixedWhite.c.b = knx.paramInt(PARAM_wb);
         //XML group: Dimmer
         dimmer.setDurationAbsolute(softOnOffTimeList[knx.paramByte(PARAM_timeSoft)] * 100);
         dimmer.setDurationRelative(relDimTimeList[knx.paramByte(PARAM_timeRel)] * 1000);
@@ -310,19 +320,22 @@ void setup()
         //XML group: User colors
 #define UCSIZE (4 * 4)
         for (byte uc = 0; uc < USERCOLORS; uc++) {
-            for (byte col = R; col <= W; col++) {
-                userColors[uc][col]   = knx.paramInt(PARAM_uc1r + uc * UCSIZE + col * 4);    
-            }
+            userColors[uc].rgbw = 
+                ((uint8_t)knx.paramInt(PARAM_uc1r + uc * UCSIZE)) << 16
+                |((uint8_t)knx.paramInt(PARAM_uc1g + uc * UCSIZE)) << 8
+                |((uint8_t)knx.paramInt(PARAM_uc1b + uc * UCSIZE))
+                |((uint8_t)knx.paramInt(PARAM_uc1w + uc * UCSIZE) << 24)
+                ;
         }
         //XML group: Messages:
 #define MSGSIZE (6 * 4)
         for (byte mc = 0; mc < MESSAGES; mc++) {
             msg[mc].ledFirst    = knx.paramInt(PARAM_m1first + MSGSIZE * mc) - 1; //Code: count from 0.., Suite: Count from 1..
             msg[mc].ledLast     = knx.paramInt(PARAM_m1last + MSGSIZE * mc) - 1;
-            msg[mc].ledColor[R] = knx.paramInt(PARAM_m1r + MSGSIZE * mc);
-            msg[mc].ledColor[G] = knx.paramInt(PARAM_m1g + MSGSIZE * mc);
-            msg[mc].ledColor[B] = knx.paramInt(PARAM_m1b + MSGSIZE * mc);
-            msg[mc].ledColor[W] = knx.paramInt(PARAM_m1w + MSGSIZE * mc);
+            msg[mc].ledColor.c.r = knx.paramInt(PARAM_m1r + MSGSIZE * mc);
+            msg[mc].ledColor.c.g = knx.paramInt(PARAM_m1g + MSGSIZE * mc);
+            msg[mc].ledColor.c.b = knx.paramInt(PARAM_m1b + MSGSIZE * mc);
+            msg[mc].ledColor.c.w = knx.paramInt(PARAM_m1w + MSGSIZE * mc);
         }
         //XML group: power supply
         powerSupplyControl = knx.paramByte(PARAM_psControl);
@@ -364,7 +377,7 @@ void setup()
 
 void powerSupply(){
     if(powerSupplyControl){
-        if(!lastStaticColor[R] && !lastStaticColor[G] && !lastStaticColor[B] && !lastStaticColor[W] &&
+        if(!lastStaticColor.rgbw &&
            !msg[0].lastValue && !msg[1].lastValue && !msg[2].lastValue && !msg[3].lastValue && currentTask == TASK_IDLE){
             allLedsOff = true;
         }else{
@@ -433,13 +446,10 @@ void loop()
         if (millis() - rgbwChangedMillis > rgbwhsvChangedDelay && !acceptNewRGBW)
         {
             println(F("apply new rgb(w) values"));
-            println(F("newRGBW R: %d, G: %d, B: %d, W: %d"), newRGBW[R], newRGBW[G], newRGBW[B], newRGBW[W]);
-            println(F("valuesRGBW R: %d, G: %d, B: %d, W: %d \n"), valuesRGBW[R], valuesRGBW[G], valuesRGBW[B], valuesRGBW[W]);
+            println(F("newRGBW %ld"), newRGBW.rgbw);
+            println(F("valuesRGBW %ld \n"), valuesRGBW.rgbw);
 
-            valuesRGBW[R] = newRGBW[R];
-            valuesRGBW[G] = newRGBW[G];
-            valuesRGBW[B] = newRGBW[B];
-            valuesRGBW[W] = newRGBW[W];
+            valuesRGBW.rgbw = newRGBW.rgbw;
             acceptNewRGBW = true;
         }
     }
@@ -460,7 +470,8 @@ void loop()
         goDimmerStatus.value(dimmer.getCurrentValue());
         println(F("Send dimmer status: %d"), dimmer.getCurrentValue() != 0);
         if (!dimmer.getCurrentValue()) {
-            sendSceneNumber = 0; //all off
+            currentTask = ALL_OFF;
+            sendSceneNumber = ALL_OFF; //all off
         }
         goDimmerValueStatus.value(dimmer.getCurrentValue());
         println(F("Send dimmer value status: %d"), dimmer.getCurrentValue());

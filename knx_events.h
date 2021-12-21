@@ -9,7 +9,7 @@ void dimmSwitchCallback(GroupObject &go)
     println(F("taskSoftOnOff: %d"), tmpBool);
     // Switching on still turns into white
     if (tmpBool) {
-        setLeds(255);
+        currentTask = WHITE;
         sendSceneNumber = WHITE;
     }
 }
@@ -30,6 +30,10 @@ void dimmAbsCallback(GroupObject &go)
     lastTask = currentTask;
     powerSupplyTurnOn = true; //dirty solution: if PS is off and LEDs are off and next command is "turn all off" PS will go on... and after timeout off. Is this a real use case?!
     byte newValue = (byte)go.value();
+    if (dimmer.getCurrentValue() ==0 || lastTask == ALL_OFF) {
+        currentTask = WHITE;
+        sendSceneNumber = WHITE;
+    }
     taskNewValue(newValue);
     println(F("taskNewValue: %d"), newValue);
 }
@@ -45,6 +49,9 @@ void sceneCallback(GroupObject &go)
         currentTask = newTask;
         acceptNewRGBW = true;
         initialized = false;
+    }
+    if (dimmer.getCurrentValue() == 0) {
+        taskSoftOnOff(true);
     }
     sendSceneNumber = newTask;
 }
@@ -63,29 +70,29 @@ static byte colorValChange(GroupObject &go) {
 void redValCallback(GroupObject &go)
 {
     println(F("redValCallback"));
-    newRGBW[R] = colorValChange(go);
-    println(F("new R: %d / 0x%02x"), newRGBW[R], newRGBW[R]);
+    newRGBW.c.r = colorValChange(go);
+    println(F("new R: %d / 0x%02x"), newRGBW.c.r, newRGBW.c.r);
 }
 
 void greenValCallback(GroupObject &go)
 {
     println(F("greenValCallback"));
-    newRGBW[G] = colorValChange(go);
-    println(F("new G: %d / 0x%02x"), newRGBW[G], newRGBW[G]);
+    newRGBW.c.g = colorValChange(go);
+    println(F("new G: %d / 0x%02x"), newRGBW.c.g, newRGBW.c.g);
 }
 
 void blueValCallback(GroupObject &go)
 {
     println(F("blueValCallback"));
-    newRGBW[B] = colorValChange(go);
-    println(F("new B: %d / 0x%02x"), newRGBW[B], newRGBW[B]);
+    newRGBW.c.b = colorValChange(go);
+    println(F("new B: %d / 0x%02x"), newRGBW.c.b, newRGBW.c.b);
 }
 
 void whiteValCallback(GroupObject &go)
 {
     println(F("whiteValCallback"));
-    newRGBW[W] = colorValChange(go);
-    println(F("new W: %d / 0x%02x"), newRGBW[W], newRGBW[W]);
+    newRGBW.c.w = colorValChange(go);
+    println(F("new W: %d / 0x%02x"), newRGBW.c.w, newRGBW.c.w);
 }
 
 void rgbwCallback(GroupObject &go) // RGBW 251.600
@@ -95,11 +102,8 @@ void rgbwCallback(GroupObject &go) // RGBW 251.600
     powerSupplyTurnOn = true; //dirty solution: if PS is off and LEDs are off and next command is "turn all off" PS will go on... and after timeout off. Is this a real use case?!
     acceptNewRGBW = true;
     uint32_t newValue = (uint32_t)go.value();
-    valuesRGBW[R] = newValue >> 24;
-    valuesRGBW[G] = newValue >> 16;
-    valuesRGBW[B] = newValue >> 8;
-    valuesRGBW[W] = newValue;
-    println(F("valuesRGBW R: %d, G: %d, B: %d, W: %d \n"),valuesRGBW[R],valuesRGBW[G],valuesRGBW[B],valuesRGBW[W]);
+    valuesRGBW.rgbw = newValue;
+    println(F("valuesRGBW R: %d, G: %d, B: %d, W: %d \n"),valuesRGBW.c.r,valuesRGBW.c.g,valuesRGBW.c.b,valuesRGBW.c.w);
     currentTask = TASK_RGBW;
     sendSceneNumber = TASK_RGBW;
 }
@@ -121,24 +125,24 @@ void msgCallback(GroupObject &go)
         case 2: // RGB
         {
             uint32_t newRGB = (uint32_t)go.value();
-            msg[msgNum].ledColor[R] = newRGB >> 16;
-            msg[msgNum].ledColor[G] = newRGB >> 8;
-            msg[msgNum].ledColor[B] = newRGB;
-            msg[msgNum].ledColor[W] = 0;
+            msg[msgNum].ledColor.rgbw = newRGB;
             msg[msgNum].newValue = newRGB ? 255 : 0;
             statusM |= (1<<msgNum);
         }
             break;
         case 3: // RGBW
         {
-            uint32_t newRGBW = (uint32_t)go.value();
-            msg[msgNum].ledColor[R] = newRGBW >> 24;
-            msg[msgNum].ledColor[G] = newRGBW >> 16;
-            msg[msgNum].ledColor[B] = newRGBW >> 8;
-            msg[msgNum].ledColor[W] = newRGBW;
+            uint64_t newRGBW = (uint64_t)go.value();
+            uint32_t mask = newRGBW >> 32;
+            msg[msgNum].ledColor.rgbw &= ~mask;
+            msg[msgNum].ledColor.rgbw |= newRGBW & mask;
             msg[msgNum].newValue = newRGBW ? 255 : 0;
             statusM |= (1<<msgNum);
         }
             break;
+    }
+    if (dimmer.getCurrentValue() == 0)
+    {
+        taskSoftOnOff(true);
     }
 }

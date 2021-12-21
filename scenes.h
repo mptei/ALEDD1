@@ -3,18 +3,16 @@ void taskFunction(){
     if(currentTask != TASK_IDLE) {
         lastTaskBeforeMessage = currentTask;
         //exit WAIT state
-        for (byte mc = 0; mc < MESSAGES; mc++) {
-            if (!(statusM & (1<<mc))) statusM |= (1<<mc);
-        }
+        statusM = (0xFF >> (8-MESSAGES));
     }
     
 
     switch(currentTask){
         case ALL_OFF:
-            setLeds(0);
+            setAll(black);
             break;
         case WHITE:
-            setLeds(255);
+            setAll(white);
             break;
         case RED:
             setAll(red);
@@ -96,7 +94,7 @@ void taskFunction(){
         case TASK_RGBW:
             if(acceptNewRGBW){
                 //first 12 bits are not defined, 4 bits ignored
-                println(F("valuesRGBW R: %d, G: %d, B: %d, W: %d"), valuesRGBW[R], valuesRGBW[G], valuesRGBW[B], valuesRGBW[W]);
+                println(F("valuesRGBW R: %d, G: %d, B: %d, W: %d"), valuesRGBW.c.r, valuesRGBW.c.g, valuesRGBW.c.b, valuesRGBW.c.w);
                 setAll(valuesRGBW);
                 acceptNewRGBW = false;
                 rgbwChanged = false;
