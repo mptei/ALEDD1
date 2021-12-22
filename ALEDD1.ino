@@ -1,4 +1,37 @@
 #include <Arduino.h>
+
+#include <stdarg.h>
+// Activate debugging output
+#define DBG_PRINT
+#define DBG_SERIAL SerialUSB
+void dbg_init()
+{
+#ifdef DBG_PRINT
+    DBG_SERIAL.begin(115200);
+    while (!DBG_SERIAL);
+#endif
+}
+void dbg_print(const __FlashStringHelper *format, ...)
+{
+#ifdef DBG_PRINT
+    if (true) {
+
+        char buf[128]; // limit to 128chars
+        va_list args;
+        va_start(args, format);
+
+#if defined(__AVR__) || defined(ESP8266) || defined(ARDUINO_ARCH_STM32)
+        vsnprintf_P(buf, sizeof (buf), (const char *) format, args); // progmem for AVR and ESP8266
+#else
+        vsnprintf(buf, sizeof (buf), (const char *) format, args); // for rest of the world
+#endif    
+
+        va_end(args);
+        DBG_SERIAL.println(buf);
+    }
+#endif
+}
+
 #include <knx.h>
 
 #include "wiring_private.h"
@@ -195,13 +228,9 @@ void SERCOM2_Handler()
 
 void setup()
 {
-#ifndef KDEBUG
-    SerialUSB.begin(115200);
-    while (!SerialUSB);
-    ArduinoPlatform::SerialDebug = &SerialUSB;
-#else
-    Serial.begin(115200);
-    ArduinoPlatform::SerialDebug = &Serial;
+    dbg_init();
+#ifdef DBG_PRINT
+    ArduinoPlatform::SerialDebug = &DBG_SERIAL;
 #endif
 
     randomSeed(millis());
@@ -343,9 +372,11 @@ void setup()
         if(!powerSupplyControl){
             powerSupplyState = true;
         }
-        println(F("LED_Type: 0x%02x"), ledType);
-        println(F("LED_Count: %d"), numberLeds);
-        println(F("Gamma: %f"), gammaCorrection);
+
+        
+        dbg_print(F("LED_Type: 0x%02x"), ledType);
+        dbg_print(F("LED_Count: %d"), numberLeds);
+        dbg_print(F("Gamma: %f"), gammaCorrection);
 
         setDimmingCurves();
         initStrip(numberLeds, ledType);
@@ -385,24 +416,24 @@ void powerSupply(){
         }
         if(powerSupplyTurnOn && !powerSupplyState){
             goPowerSupply.value(true);
-            println(F("Turn PS on!"));
+            dbg_print(F("Turn PS on!"));
             powerSupplyTurnOn = false;
         }
         if(powerSupplyState && allLedsOff && !powerSupplyTurnOff){//power supply is on and all LEDs are off => start to 'turn off power supply' routine
             powerSupplyTurnOff = true;
             powerSupplyOffMillis = millis();
-            println(F("All LEDs are off, start 'turn off power supply' routine"));
+            dbg_print(F("All LEDs are off, start 'turn off power supply' routine"));
         }
         if(powerSupplyState && !allLedsOff && powerSupplyTurnOff){//power supply is on and some LEDs are on => PS stays on
             powerSupplyTurnOff = false;
-            println(F("Some LEDs are on, stop 'turn off power supply' routine"));
+            dbg_print(F("Some LEDs are on, stop 'turn off power supply' routine"));
         }
         if(!powerSupplyState && allLedsOff && powerSupplyTurnOff){//stop "power off" routine, PS is already off
-            println(F("All LEDs are off, Power Supply is also off, stop 'turn off power supply' routine"));
+            dbg_print(F("All LEDs are off, Power Supply is also off, stop 'turn off power supply' routine"));
             powerSupplyTurnOff = false;
         }
         if(powerSupplyTurnOff && (millis() - powerSupplyOffMillis) >= powerSupplyOffDelay){
-            println(F("Time is over, turn PS off"));
+            dbg_print(F("Time is over, turn PS off"));
             goPowerSupply.value(false);
             powerSupplyTurnOff = false;
         }
@@ -431,7 +462,7 @@ void loop()
         if (lastState != powerSupplyState)
         {
             lastState = powerSupplyState;
-            println(F("PowerSupply state: %d"), powerSupplyState);
+            dbg_print(F("PowerSupply state: %d"), powerSupplyState);
         }
     }
 
@@ -445,9 +476,9 @@ void loop()
     {
         if (millis() - rgbwChangedMillis > rgbwhsvChangedDelay && !acceptNewRGBW)
         {
-            println(F("apply new rgb(w) values"));
-            println(F("newRGBW %ld"), newRGBW.rgbw);
-            println(F("valuesRGBW %ld \n"), valuesRGBW.rgbw);
+            dbg_print(F("apply new rgb(w) values"));
+            dbg_print(F("newRGBW %ld"), newRGBW.rgbw);
+            dbg_print(F("valuesRGBW %ld \n"), valuesRGBW.rgbw);
 
             valuesRGBW.rgbw = newRGBW.rgbw;
             acceptNewRGBW = true;
@@ -457,7 +488,7 @@ void loop()
     {
         if (millis() - hsvChangedMillis > rgbwhsvChangedDelay && !acceptNewHSV)
         {
-            println(F("apply new hsv values"));
+            dbg_print(F("apply new hsv values"));
 
             valuesHSV[0] = newHSV[0];
             valuesHSV[1] = newHSV[1];
@@ -468,19 +499,19 @@ void loop()
     if (dimmer.updateAvailable())
     {
         goDimmerStatus.value(dimmer.getCurrentValue());
-        println(F("Send dimmer status: %d"), dimmer.getCurrentValue() != 0);
+        dbg_print(F("Send dimmer status: %d"), dimmer.getCurrentValue() != 0);
         if (!dimmer.getCurrentValue()) {
             currentTask = ALL_OFF;
             sendSceneNumber = ALL_OFF; //all off
         }
         goDimmerValueStatus.value(dimmer.getCurrentValue());
-        println(F("Send dimmer value status: %d"), dimmer.getCurrentValue());
+        dbg_print(F("Send dimmer value status: %d"), dimmer.getCurrentValue());
         lastDimmerValue = dimmer.getCurrentValue();
         dimmer.resetUpdateFlag();
     }
     if (sendSceneNumber < 64)
     {
-        println(F("Send scene status: %d"), sendSceneNumber);
+        dbg_print(F("Send scene status: %d"), sendSceneNumber);
         goSceneStatus.value(sendSceneNumber);
         sendSceneNumber = 0xFF;
     }

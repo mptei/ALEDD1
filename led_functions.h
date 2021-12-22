@@ -41,9 +41,7 @@ void testStrip(){
     if(neopixels) delete neopixels;
     neopixels = new Adafruit_NeoPixel_ZeroDMA(600, LED_STRIP_PIN, NEO_RGBW);
     if (!neopixels->begin(&sercom4, SERCOM4, SERCOM4_DMAC_ID_TX, LED_STRIP_PIN, SPI_PAD_0_SCK_3, PIO_SERCOM_ALT)) {
-#ifdef KDEBUG
-        Debug.println(F("NeoPixels begin failed"));
-#endif                
+        dbg_print(F("NeoPixels begin failed"));
     }
     neopixels->setPixelColor(0, 255 , 0, 0, 0);
     neopixels->setPixelColor(1, 0, 255, 0, 0);
@@ -89,7 +87,7 @@ void initStrip(word pixel, byte type){
     neopixels->begin(&sercom4, SERCOM4, SERCOM4_DMAC_ID_TX, LED_STRIP_PIN, SPI_PAD_0_SCK_3, PIO_SERCOM_ALT);
 #endif
     neopixels->show();
-    println(F("initPixel done"));
+    dbg_print(F("initPixel done"));
 }
 
 void setDayNightValues(bool night){
@@ -116,7 +114,7 @@ void taskDimUpDownStop(byte value){
     byte step = value & DPT3_007_MASK_STEP;
     //true = increase, false = decrease
     bool direction = value & DPT3_007_MASK_DIRECTION;
-    println(F("value: %d, step: %d, direction: %d"), value, step, direction);
+    dbg_print(F("value: %d, step: %d, direction: %d"), value, step, direction);
     //if step == B?????000 then stop
     if(step == DPT3_007_STOP)
         dimmer.taskStop();
@@ -159,9 +157,6 @@ void setAll(color_t color){
     currentTask = TASK_IDLE; //TASK_IDLE
     //staticColorReady = true;
     color_t corrected = colorCorrection(color);
-#ifdef KDEBUG
-    Debug.println(F("setAll log: R: %d, G: %d, B: %d, W: %d, HEX: 0x%02x 0x%02x 0x%02x 0x%02x"),r,g,b,w,r,g,b,w);
-#endif
     for(int i = 0; i < numberLeds; i++){
         neopixels->setPixelColor(i, corrected.rgbw);
     }
@@ -171,7 +166,7 @@ void setAll(color_t color){
 }
 
 void setAllHsv(byte h, byte s, byte v){
-    println(F("setAllHsv H: %d, S: %d, V: %d"), h, s, v);
+    dbg_print(F("setAllHsv H: %d, S: %d, V: %d"), h, s, v);
     currentTask = TASK_IDLE; //TASK_IDLE
     byte newRGB[3];
     hsvToRgb(h, s, v, newRGB);
@@ -283,7 +278,7 @@ void showMessage(){
             for (byte mc = 0; mc < MESSAGES; mc++) {
                 if (msg[mc].lastValue > msg[mc].newValue) {
                     setAll(lastStaticColor);
-                    println(F("Messages: set last color: R: %d, G: %d, B: %d, W: %d, statusM2: %d"), lastStaticColor.c.r, lastStaticColor.c.g, lastStaticColor.c.b, lastStaticColor.c.w, statusM & (1<<1));
+                    dbg_print(F("Message %d: set last static color: WRGB: %08xl, statusM: %d"), mc, lastStaticColor.rgbw, statusM & (1<<mc));
                     break;
                 }
             }            
@@ -292,9 +287,6 @@ void showMessage(){
                 setMessageLeds(msg[mc].ledFirst, msg[mc].ledLast, msg[mc].newValue, msg[mc].ledColor);
                 if(statusM & (1<<mc)) {
                     statusM &= ~(1<<mc); //set message WAIT state
-#ifdef KDEBUG
-                    Debug.println(F("Message 1: pause routine and wait until TASK will be changed"));
-#endif                
                     msg[mc].lastValue = msg[mc].newValue;
                 }
             }

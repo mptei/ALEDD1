@@ -1,5 +1,4 @@
 void taskFunction(){
-//    Debug.println(F("currentTask: 0x%02X"), currentTask);
     if(currentTask != TASK_IDLE) {
         lastTaskBeforeMessage = currentTask;
         //exit WAIT state
@@ -80,7 +79,6 @@ void taskFunction(){
 
         case TASK_RGB:
             if(acceptNewRGBW){
-//                Debug.println(F("valuesRGBW R: %d, G: %d, B: %d, W: %d"),valuesRGBW[R],valuesRGBW[G],valuesRGBW[B],valuesRGBW[W]);
                 setAll(valuesRGBW);
                 acceptNewRGBW = false;
                 rgbwChanged = false;
@@ -88,24 +86,24 @@ void taskFunction(){
                 new3Byte[0] = 0;
                 new3Byte[1] = 0;
                 new3Byte[2] = 0;
-                println(F("TASK_RGB done"));
+                dbg_print(F("TASK_RGB done"));
             }
             break;
         case TASK_RGBW:
             if(acceptNewRGBW){
                 //first 12 bits are not defined, 4 bits ignored
-                println(F("valuesRGBW R: %d, G: %d, B: %d, W: %d"), valuesRGBW.c.r, valuesRGBW.c.g, valuesRGBW.c.b, valuesRGBW.c.w);
+                dbg_print(F("valuesRGBW R: %d, G: %d, B: %d, W: %d"), valuesRGBW.c.r, valuesRGBW.c.g, valuesRGBW.c.b, valuesRGBW.c.w);
                 setAll(valuesRGBW);
                 acceptNewRGBW = false;
                 rgbwChanged = false;
-                println(F("TASK_RGBW done"));
+                dbg_print(F("TASK_RGBW done"));
             }
             break;
         case TASK_HSV:
             if(acceptNewHSV){
                 setAllHsv(valuesHSV[0], valuesHSV[1], valuesHSV[2]);
                 acceptNewHSV = false;
-                println(F("TASK_HSV done"));
+                dbg_print(F("TASK_HSV done"));
             }
             break;
         case TASK_DIMMER:

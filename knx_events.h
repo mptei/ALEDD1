@@ -1,12 +1,12 @@
 void dimmSwitchCallback(GroupObject &go)
 {
-    println(F("dimmSwitchCallback"));
+    dbg_print(F("dimmSwitchCallback"));
     lastTask = currentTask;
     bool tmpBool = false;
     powerSupplyTurnOn = true; //dirty solution: if PS is off and LEDs are off and next command is "turn all off" PS will go on... and after timeout off. Is this a real use case?!
     tmpBool = (bool)go.value();
     taskSoftOnOff(tmpBool);
-    println(F("taskSoftOnOff: %d"), tmpBool);
+    dbg_print(F("taskSoftOnOff: %d"), tmpBool);
     // Switching on still turns into white
     if (tmpBool) {
         currentTask = WHITE;
@@ -16,17 +16,17 @@ void dimmSwitchCallback(GroupObject &go)
 
 void dimmRelCallback(GroupObject &go)
 {
-    println(F("dimmRelCallback"));
+    dbg_print(F("dimmRelCallback"));
     lastTask = currentTask;
     powerSupplyTurnOn = true; //dirty solution: if PS is off and LEDs are off and next command is "turn all off" PS will go on... and after timeout off. Is this a real use case?!
     byte newValue = (byte)go.value();
     taskDimUpDownStop(newValue);
-    println(F("taskDimUpDownStop: %d"), newValue);
+    dbg_print(F("taskDimUpDownStop: %d"), newValue);
 }
       
 void dimmAbsCallback(GroupObject &go)
 {
-    println(F("dimmAbsCallback"));
+    dbg_print(F("dimmAbsCallback"));
     lastTask = currentTask;
     powerSupplyTurnOn = true; //dirty solution: if PS is off and LEDs are off and next command is "turn all off" PS will go on... and after timeout off. Is this a real use case?!
     byte newValue = (byte)go.value();
@@ -35,16 +35,16 @@ void dimmAbsCallback(GroupObject &go)
         sendSceneNumber = WHITE;
     }
     taskNewValue(newValue);
-    println(F("taskNewValue: %d"), newValue);
+    dbg_print(F("taskNewValue: %d"), newValue);
 }
       
 void sceneCallback(GroupObject &go)
 {
-    println(F("sceneCallback"));
+    dbg_print(F("sceneCallback"));
     lastTask = currentTask;
     powerSupplyTurnOn = true; //dirty solution: if PS is off and LEDs are off and next command is "turn all off" PS will go on... and after timeout off. Is this a real use case?!
     byte newTask = go.value();
-    println(F("newTask: 0x%02X"), newTask);
+    dbg_print(F("newTask: 0x%02X"), newTask);
     if (newTask != 0xFF) {
         currentTask = newTask;
         acceptNewRGBW = true;
@@ -69,41 +69,41 @@ static byte colorValChange(GroupObject &go) {
 
 void redValCallback(GroupObject &go)
 {
-    println(F("redValCallback"));
+    dbg_print(F("redValCallback"));
     newRGBW.c.r = colorValChange(go);
-    println(F("new R: %d / 0x%02x"), newRGBW.c.r, newRGBW.c.r);
+    dbg_print(F("new R: %d / 0x%02x"), newRGBW.c.r, newRGBW.c.r);
 }
 
 void greenValCallback(GroupObject &go)
 {
-    println(F("greenValCallback"));
+    dbg_print(F("greenValCallback"));
     newRGBW.c.g = colorValChange(go);
-    println(F("new G: %d / 0x%02x"), newRGBW.c.g, newRGBW.c.g);
+    dbg_print(F("new G: %d / 0x%02x"), newRGBW.c.g, newRGBW.c.g);
 }
 
 void blueValCallback(GroupObject &go)
 {
-    println(F("blueValCallback"));
+    dbg_print(F("blueValCallback"));
     newRGBW.c.b = colorValChange(go);
-    println(F("new B: %d / 0x%02x"), newRGBW.c.b, newRGBW.c.b);
+    dbg_print(F("new B: %d / 0x%02x"), newRGBW.c.b, newRGBW.c.b);
 }
 
 void whiteValCallback(GroupObject &go)
 {
-    println(F("whiteValCallback"));
+    dbg_print(F("whiteValCallback"));
     newRGBW.c.w = colorValChange(go);
-    println(F("new W: %d / 0x%02x"), newRGBW.c.w, newRGBW.c.w);
+    dbg_print(F("new W: %d / 0x%02x"), newRGBW.c.w, newRGBW.c.w);
 }
 
 void rgbwCallback(GroupObject &go) // RGBW 251.600
 {
-    println(F("rgbwCallback"));
+    dbg_print(F("rgbwCallback"));
     lastTask = currentTask;
     powerSupplyTurnOn = true; //dirty solution: if PS is off and LEDs are off and next command is "turn all off" PS will go on... and after timeout off. Is this a real use case?!
     acceptNewRGBW = true;
     uint32_t newValue = (uint32_t)go.value();
     valuesRGBW.rgbw = newValue;
-    println(F("valuesRGBW R: %d, G: %d, B: %d, W: %d \n"),valuesRGBW.c.r,valuesRGBW.c.g,valuesRGBW.c.b,valuesRGBW.c.w);
+    dbg_print(F("valuesRGBW R: %d, G: %d, B: %d, W: %d \n"),valuesRGBW.c.r,valuesRGBW.c.g,valuesRGBW.c.b,valuesRGBW.c.w);
     currentTask = TASK_RGBW;
     sendSceneNumber = TASK_RGBW;
 }
@@ -112,7 +112,7 @@ void msgCallback(GroupObject &go)
 {
     byte msgNum = (go.asap() - 18) / 4;
     byte msgFunc = (go.asap() - 18) % 4;
-    println(F("msgCallback %d/%d"), msgNum, msgFunc);
+    dbg_print(F("msgCallback %d/%d"), msgNum, msgFunc);
     switch (msgFunc) {
         case 0:  // Switch
             msg[msgNum].newValue = (bool)go.value() ? 255 : 0;
