@@ -107,7 +107,6 @@ void taskFunction(){
             }
             break;
         case TASK_DIMMER:
-            setLeds(lastDimmerValue);
             break;
            
         case TASK_IDLE:

@@ -394,7 +394,7 @@ void setup()
         setDimmingCurves();
         initStrip(numberLeds, ledType);
         // White by default
-        setLeds(0xff);
+        setAll(white);
         // Off by default
         neopixels->setBrightness(0);
         pixelsShow = true;

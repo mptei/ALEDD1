@@ -201,13 +201,6 @@ void setAllHsv(byte h, byte s, byte v){
     }
 }
 
-//function to set LED-Values
-void setLeds(byte value){
-    color_t color = {.c={0,0,0,value}};
-    setAll(color);
-//    Debug.println(F("setLeds %d"),index);
-}
-
 void setBrightness(byte value){
     neopixels->setBrightness(value);
     pixelsShow = true;
