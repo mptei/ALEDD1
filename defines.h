@@ -1,9 +1,9 @@
 //DPT3.007 stuff
-#define DPT3_007_MASK_DIRECTION B1000
-#define DPT3_007_INCREASE       B1000
-#define DPT3_007_DECREASE       B0000
-#define DPT3_007_MASK_STEP      B0111
-#define DPT3_007_STOP           B0000
+#define DPT3_007_MASK_DIRECTION 0b1000
+#define DPT3_007_INCREASE       0b1000
+#define DPT3_007_DECREASE       0b0000
+#define DPT3_007_MASK_STEP      0b0111
+#define DPT3_007_STOP           0b0000
 
 
 

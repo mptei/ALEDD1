@@ -19,7 +19,7 @@ void dimmRelCallback(GroupObject &go)
     dbg_print(F("dimmRelCallback"));
     lastTask = currentTask;
     powerSupplyTurnOn = true; //dirty solution: if PS is off and LEDs are off and next command is "turn all off" PS will go on... and after timeout off. Is this a real use case?!
-    byte newValue = (byte)go.value();
+    byte newValue = *go.valueRef();
     taskDimUpDownStop(newValue);
     dbg_print(F("taskDimUpDownStop: %d"), newValue);
 }
