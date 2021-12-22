@@ -76,6 +76,8 @@ void dbg_print(const __FlashStringHelper *format, ...)
 
 #define goPowerSupply knx.getGroupObject(34)
 
+#define goDayNight knx.getGroupObject(35)
+
 typedef union {
     uint32_t rgbw;
     struct {
@@ -106,7 +108,6 @@ byte lastTaskBeforeMessage = 0; // all LEDs are off
 color_t lastStaticColor = black;
 bool staticColorReady = false;
 byte sendSceneNumber = 0xFF;
-byte lastDimmerValue = 0;
 unsigned long lastAnimMillis = 0;
 
 byte curveR[256];
@@ -179,6 +180,9 @@ unsigned long powerSupplyOffMillis = 0;
 bool psStateChecked = false;
 unsigned long psStateCheckedMillis = 0;
 bool lastState = false;
+
+bool dayIsOn = false;
+bool sendOnStartup = false;
 
 //create some instances
 Adafruit_NeoPixel_ZeroDMA *neopixels;
@@ -287,6 +291,9 @@ void setup()
             goMsgRGBW(mc).callback(msgCallback);
         }
 
+        goDayNight.dataPointType(DPT_Switch);
+        goDayNight.callback(dayNightCallback);
+
 #define PARM_ledType            0
 #define PARM_numbersLedsStrip   1
 #define PARM_firstOnValue       5
@@ -321,6 +328,9 @@ void setup()
 #define PARAM_psControl        235
 #define PARAM_psDelay          236
 
+#define PARAM_dayIsOn          240
+#define PARAM_statusOnStart    241
+
         //XML group: LED
         ledType = knx.paramByte(PARM_ledType);
         if(ledType == NEO_RGB || ledType == NEO_RBG || ledType == NEO_GRB || 
@@ -344,6 +354,7 @@ void setup()
         valueMaxDay = knx.paramInt(PARAM_dayMax);
         valueMinNight = knx.paramInt(PARAM_nightMin);
         valueMaxNight = knx.paramInt(PARAM_nightMax);
+        dayIsOn = knx.paramByte(PARAM_dayIsOn);
         //set day values until we know if it is day or night
         setDayNightValues(false);
         //XML group: User colors
@@ -373,7 +384,9 @@ void setup()
             powerSupplyState = true;
         }
 
+        sendOnStartup = knx.paramByte(PARAM_statusOnStart);
         
+
         dbg_print(F("LED_Type: 0x%02x"), ledType);
         dbg_print(F("LED_Count: %d"), numberLeds);
         dbg_print(F("Gamma: %f"), gammaCorrection);
@@ -504,9 +517,9 @@ void loop()
             currentTask = ALL_OFF;
             sendSceneNumber = ALL_OFF; //all off
         }
-        goDimmerValueStatus.value(dimmer.getCurrentValue());
-        dbg_print(F("Send dimmer value status: %d"), dimmer.getCurrentValue());
-        lastDimmerValue = dimmer.getCurrentValue();
+        byte busValue = scaleToBus(dimmer.getCurrentValue());
+        goDimmerValueStatus.value(busValue);
+        dbg_print(F("Send dimmer value status: %d"), busValue);
         dimmer.resetUpdateFlag();
     }
     if (sendSceneNumber < 64)

@@ -146,3 +146,10 @@ void msgCallback(GroupObject &go)
         taskSoftOnOff(true);
     }
 }
+
+void dayNightCallback(GroupObject &go)
+{
+    dbg_print(F("dayNightCallback"));
+    bool tmpBool = (bool)go.value();
+    setDayNightValues(tmpBool);
+}

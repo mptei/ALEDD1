@@ -11,7 +11,7 @@
         <ApplicationProgram Id="M-00FA_A-0001-01-0000" ApplicationNumber="1" ApplicationVersion="1" ProgramType="ApplicationProgram" MaskVersion="MV-07B0" Name="ALEDD1 TP" LoadProcedureStyle="MergedProcedure" PeiType="0" DefaultLanguage="en-US" DynamicTableManagement="false" Linkable="false" MinEtsVersion="4.0">
           <Static>
             <Code>
-              <RelativeSegment Id="M-00FA_A-0001-01-0000_RS-04-00000" Name="Parameters" Size="240" LoadStateMachine="4" Offset="0" />
+              <RelativeSegment Id="M-00FA_A-0001-01-0000_RS-04-00000" Name="Parameters" Size="242" LoadStateMachine="4" Offset="0" />
             </Code>
             <ParameterTypes>
               <ParameterType Id="M-00FA_A-0001-01-0000_PT-LEDType" Name="LEDType">
@@ -79,14 +79,20 @@
               <ParameterType Id="M-00FA_A-0001-01-0000_PT-MsgFiLa" Name="MsgFiLa">
                 <TypeNumber SizeInBit="32" Type="signedInt" minInclusive="1" maxInclusive="600" />
               </ParameterType>
-              <ParameterType Id="M-00FA_A-0001-01-0000_PT-PowerCtrl" Name="PowerCtrl">
+              <ParameterType Id="M-00FA_A-0001-01-0000_PT-NoYes" Name="NoYes">
                 <TypeRestriction Base="Value" SizeInBit="8">
-                  <Enumeration Text="no" Value="0" Id="M-00FA_A-0001-01-0000_PT-PowerCtrl_EN-0" />
-                  <Enumeration Text="yes" Value="1" Id="M-00FA_A-0001-01-0000_PT-PowerCtrl_EN-1" />
+                  <Enumeration Text="no" Value="0" Id="M-00FA_A-0001-01-0000_PT-NoYes_EN-0" />
+                  <Enumeration Text="yes" Value="1" Id="M-00FA_A-0001-01-0000_PT-NoYes_EN-1" />
                 </TypeRestriction>
               </ParameterType>
               <ParameterType Id="M-00FA_A-0001-01-0000_PT-PowerDly" Name="PowerDly">
                 <TypeNumber SizeInBit="32" Type="signedInt" minInclusive="0" maxInclusive="180" />
+              </ParameterType>
+              <ParameterType Id="M-00FA_A-0001-01-0000_PT-DayOn" Name="DayOn">
+                <TypeRestriction Base="Value" SizeInBit="8">
+                  <Enumeration Text="On = Day / Off = Night" Value="0" Id="M-00FA_A-0001-01-0000_PT-DayOn_EN-0" />
+                  <Enumeration Text="On = Night / Off = Day" Value="1" Id="M-00FA_A-0001-01-0000_PT-DayOn_EN-1" />
+                </TypeRestriction>
               </ParameterType>
             </ParameterTypes>
             <Parameters>
@@ -273,11 +279,17 @@
               <Parameter Id="M-00FA_A-0001-01-0000_P-61" Name="m4w" ParameterType="M-00FA_A-0001-01-0000_PT-ColorVal" Text="White" Value="0">
                 <Memory CodeSegment="M-00FA_A-0001-01-0000_RS-04-00000" Offset="231" BitOffset="0" />
               </Parameter>
-              <Parameter Id="M-00FA_A-0001-01-0000_P-62" Name="psControl" ParameterType="M-00FA_A-0001-01-0000_PT-PowerCtrl" Text="Automatic power supply control" Value="0">
+              <Parameter Id="M-00FA_A-0001-01-0000_P-62" Name="psControl" ParameterType="M-00FA_A-0001-01-0000_PT-NoYes" Text="Automatic power supply control" Value="0">
                 <Memory CodeSegment="M-00FA_A-0001-01-0000_RS-04-00000" Offset="235" BitOffset="0" />
               </Parameter>
               <Parameter Id="M-00FA_A-0001-01-0000_P-63" Name="psDelay" ParameterType="M-00FA_A-0001-01-0000_PT-PowerDly" Text="Power delay off after x min" Value="30">
                 <Memory CodeSegment="M-00FA_A-0001-01-0000_RS-04-00000" Offset="236" BitOffset="0" />
+              </Parameter>
+              <Parameter Id="M-00FA_A-0001-01-0000_P-64" Name="dayIsOn" ParameterType="M-00FA_A-0001-01-0000_PT-DayOn" Text="Objektbedeutung" Value="0">
+                <Memory CodeSegment="M-00FA_A-0001-01-0000_RS-04-00000" Offset="240" BitOffset="0" />
+              </Parameter>
+              <Parameter Id="M-00FA_A-0001-01-0000_P-65" Name="statusOnStart" ParameterType="M-00FA_A-0001-01-0000_PT-NoYes" Text="Send status on start" Value="0">
+                <Memory CodeSegment="M-00FA_A-0001-01-0000_RS-04-00000" Offset="241" BitOffset="0" />
               </Parameter>
             </Parameters>
             <ParameterRefs>
@@ -344,25 +356,27 @@
               <ParameterRef Id="M-00FA_A-0001-01-0000_P-61_R-61" RefId="M-00FA_A-0001-01-0000_P-61" />
               <ParameterRef Id="M-00FA_A-0001-01-0000_P-62_R-62" RefId="M-00FA_A-0001-01-0000_P-62" />
               <ParameterRef Id="M-00FA_A-0001-01-0000_P-63_R-63" RefId="M-00FA_A-0001-01-0000_P-63" />
+              <ParameterRef Id="M-00FA_A-0001-01-0000_P-64_R-64" RefId="M-00FA_A-0001-01-0000_P-64" />
+              <ParameterRef Id="M-00FA_A-0001-01-0000_P-65_R-65" RefId="M-00FA_A-0001-01-0000_P-65" />
             </ParameterRefs>
             <ComObjectTable>
               <ComObject Id="M-00FA_A-0001-01-0000_O-1" Name="Dimmer" Text="Dimmer" Number="1" FunctionText="Switch" ObjectSize="1 Bit" ReadFlag="Disabled" WriteFlag="Enabled" CommunicationFlag="Enabled" TransmitFlag="Disabled" UpdateFlag="Disabled" ReadOnInitFlag="Disabled" />
-              <ComObject Id="M-00FA_A-0001-01-0000_O-2" Name="Dimmer" Text="Dimmer" Number="2" FunctionText="Dimming relativ" ObjectSize="3 Bit" ReadFlag="Disabled" WriteFlag="Enabled" CommunicationFlag="Enabled" TransmitFlag="Disabled" UpdateFlag="Disabled" ReadOnInitFlag="Disabled" />
+              <ComObject Id="M-00FA_A-0001-01-0000_O-2" Name="Dimmer" Text="Dimmer" Number="2" FunctionText="Dimming relativ" ObjectSize="4 Bit" ReadFlag="Disabled" WriteFlag="Enabled" CommunicationFlag="Enabled" TransmitFlag="Disabled" UpdateFlag="Disabled" ReadOnInitFlag="Disabled" />
               <ComObject Id="M-00FA_A-0001-01-0000_O-3" Name="Dimmer" Text="Dimmer" Number="3" FunctionText="Dimming absolute" ObjectSize="1 Byte" ReadFlag="Disabled" WriteFlag="Enabled" CommunicationFlag="Enabled" TransmitFlag="Disabled" UpdateFlag="Disabled" ReadOnInitFlag="Disabled" />
-              <ComObject Id="M-00FA_A-0001-01-0000_O-4" Name="Dimmer" Text="Dimmer" Number="4" FunctionText="Status on/off" ObjectSize="1 Bit" ReadFlag="Enabled" WriteFlag="Disabled" CommunicationFlag="Enabled" TransmitFlag="Enabled" UpdateFlag="Disabled" ReadOnInitFlag="Disabled" />
-              <ComObject Id="M-00FA_A-0001-01-0000_O-5" Name="Dimmer" Text="Dimmer" Number="5" FunctionText="Status value" ObjectSize="1 Byte" ReadFlag="Enabled" WriteFlag="Disabled" CommunicationFlag="Enabled" TransmitFlag="Enabled" UpdateFlag="Disabled" ReadOnInitFlag="Disabled" />
+              <ComObject Id="M-00FA_A-0001-01-0000_O-4" Name="Dimmer" Text="Dimmer" Number="4" FunctionText="Switch status" ObjectSize="1 Bit" ReadFlag="Enabled" WriteFlag="Disabled" CommunicationFlag="Enabled" TransmitFlag="Enabled" UpdateFlag="Disabled" ReadOnInitFlag="Disabled" />
+              <ComObject Id="M-00FA_A-0001-01-0000_O-5" Name="Dimmer" Text="Dimmer" Number="5" FunctionText="Dimm status" ObjectSize="1 Byte" ReadFlag="Enabled" WriteFlag="Disabled" CommunicationFlag="Enabled" TransmitFlag="Enabled" UpdateFlag="Disabled" ReadOnInitFlag="Disabled" />
               <ComObject Id="M-00FA_A-0001-01-0000_O-6" Name="Scene" Text="Scene" Number="6" FunctionText="Value" ObjectSize="1 Byte" ReadFlag="Disabled" WriteFlag="Enabled" CommunicationFlag="Enabled" TransmitFlag="Disabled" UpdateFlag="Disabled" ReadOnInitFlag="Disabled" />
               <ComObject Id="M-00FA_A-0001-01-0000_O-7" Name="Red" Text="Red" Number="7" FunctionText="Value" ObjectSize="1 Byte" ReadFlag="Disabled" WriteFlag="Enabled" CommunicationFlag="Enabled" TransmitFlag="Disabled" UpdateFlag="Disabled" ReadOnInitFlag="Disabled" />
               <ComObject Id="M-00FA_A-0001-01-0000_O-8" Name="Green" Text="Green" Number="8" FunctionText="Value" ObjectSize="1 Byte" ReadFlag="Disabled" WriteFlag="Enabled" CommunicationFlag="Enabled" TransmitFlag="Disabled" UpdateFlag="Disabled" ReadOnInitFlag="Disabled" />
               <ComObject Id="M-00FA_A-0001-01-0000_O-9" Name="Blue" Text="Blue" Number="9" FunctionText="Value" ObjectSize="1 Byte" ReadFlag="Disabled" WriteFlag="Enabled" CommunicationFlag="Enabled" TransmitFlag="Disabled" UpdateFlag="Disabled" ReadOnInitFlag="Disabled" />
               <ComObject Id="M-00FA_A-0001-01-0000_O-10" Name="White" Text="White" Number="10" FunctionText="Value" ObjectSize="1 Byte" ReadFlag="Disabled" WriteFlag="Enabled" CommunicationFlag="Enabled" TransmitFlag="Disabled" UpdateFlag="Disabled" ReadOnInitFlag="Disabled" />
-              <ComObject Id="M-00FA_A-0001-01-0000_O-11" Name="RGB" Text="RGB" Number="11" FunctionText="3 byte" ObjectSize="3 Bytes" ReadFlag="Disabled" WriteFlag="Enabled" CommunicationFlag="Enabled" TransmitFlag="Disabled" UpdateFlag="Disabled" ReadOnInitFlag="Disabled" />
-              <ComObject Id="M-00FA_A-0001-01-0000_O-12" Name="RGBW" Text="RGBW" Number="12" FunctionText="6 byte" ObjectSize="6 Bytes" ReadFlag="Disabled" WriteFlag="Enabled" CommunicationFlag="Enabled" TransmitFlag="Disabled" UpdateFlag="Disabled" ReadOnInitFlag="Disabled" />
+              <ComObject Id="M-00FA_A-0001-01-0000_O-11" Name="RGB" Text="RGB" Number="11" FunctionText="RGB Value" ObjectSize="3 Bytes" ReadFlag="Disabled" WriteFlag="Enabled" CommunicationFlag="Enabled" TransmitFlag="Disabled" UpdateFlag="Disabled" ReadOnInitFlag="Disabled" />
+              <ComObject Id="M-00FA_A-0001-01-0000_O-12" Name="RGBW" Text="RGBW" Number="12" FunctionText="RGBW Value" ObjectSize="6 Bytes" ReadFlag="Disabled" WriteFlag="Enabled" CommunicationFlag="Enabled" TransmitFlag="Disabled" UpdateFlag="Disabled" ReadOnInitFlag="Disabled" />
               <ComObject Id="M-00FA_A-0001-01-0000_O-13" Name="Hue" Text="Hue" Number="13" FunctionText="Value" ObjectSize="1 Byte" ReadFlag="Disabled" WriteFlag="Enabled" CommunicationFlag="Enabled" TransmitFlag="Disabled" UpdateFlag="Disabled" ReadOnInitFlag="Disabled" />
               <ComObject Id="M-00FA_A-0001-01-0000_O-14" Name="Saturation" Text="Saturation" Number="14" FunctionText="Value" ObjectSize="1 Byte" ReadFlag="Disabled" WriteFlag="Enabled" CommunicationFlag="Enabled" TransmitFlag="Disabled" UpdateFlag="Disabled" ReadOnInitFlag="Disabled" />
               <ComObject Id="M-00FA_A-0001-01-0000_O-15" Name="Brightness" Text="Brightness" Number="15" FunctionText="Value" ObjectSize="1 Byte" ReadFlag="Disabled" WriteFlag="Enabled" CommunicationFlag="Enabled" TransmitFlag="Disabled" UpdateFlag="Disabled" ReadOnInitFlag="Disabled" />
               <ComObject Id="M-00FA_A-0001-01-0000_O-16" Name="HSV" Text="HSV" Number="16" FunctionText="3 byte" ObjectSize="3 Bytes" ReadFlag="Disabled" WriteFlag="Enabled" CommunicationFlag="Enabled" TransmitFlag="Disabled" UpdateFlag="Disabled" ReadOnInitFlag="Disabled" />
-              <ComObject Id="M-00FA_A-0001-01-0000_O-17" Name="Scene" Text="Scene" Number="17" FunctionText="Status" ObjectSize="1 Byte" ReadFlag="Enabled" WriteFlag="Disabled" CommunicationFlag="Enabled" TransmitFlag="Enabled" UpdateFlag="Disabled" ReadOnInitFlag="Disabled" />
+              <ComObject Id="M-00FA_A-0001-01-0000_O-17" Name="Scene" Text="Scene" Number="17" FunctionText="Scene status" ObjectSize="1 Byte" ReadFlag="Enabled" WriteFlag="Disabled" CommunicationFlag="Enabled" TransmitFlag="Enabled" UpdateFlag="Disabled" ReadOnInitFlag="Disabled" />
               <ComObject Id="M-00FA_A-0001-01-0000_O-18" Name="Message 1" Text="Message 1" Number="18" FunctionText="Switch" ObjectSize="1 Bit" ReadFlag="Disabled" WriteFlag="Enabled" CommunicationFlag="Enabled" TransmitFlag="Disabled" UpdateFlag="Disabled" ReadOnInitFlag="Disabled" />
               <ComObject Id="M-00FA_A-0001-01-0000_O-19" Name="Message 1" Text="Message 1" Number="19" FunctionText="Percentage" ObjectSize="1 Byte" ReadFlag="Disabled" WriteFlag="Enabled" CommunicationFlag="Enabled" TransmitFlag="Disabled" UpdateFlag="Disabled" ReadOnInitFlag="Disabled" />
               <ComObject Id="M-00FA_A-0001-01-0000_O-20" Name="Message 1" Text="Message 1" Number="20" FunctionText="Color RGB" ObjectSize="3 Bytes" ReadFlag="Disabled" WriteFlag="Enabled" CommunicationFlag="Enabled" TransmitFlag="Disabled" UpdateFlag="Disabled" ReadOnInitFlag="Disabled" />
@@ -423,11 +437,11 @@
             <AssociationTable MaxEntries="65000" />
             <LoadProcedures>
               <LoadProcedure MergeId="2">
-                <LdCtrlRelSegment AppliesTo="full" LsmIdx="4" Size="240" Mode="1" Fill="0" />
-                <LdCtrlRelSegment AppliesTo="par" LsmIdx="4" Size="240" Mode="0" Fill="0" />
+                <LdCtrlRelSegment AppliesTo="full" LsmIdx="4" Size="242" Mode="1" Fill="0" />
+                <LdCtrlRelSegment AppliesTo="par" LsmIdx="4" Size="242" Mode="0" Fill="0" />
               </LoadProcedure>
               <LoadProcedure MergeId="4">
-                <LdCtrlWriteRelMem AppliesTo="full,par" ObjIdx="4" Offset="0" Size="240" Verify="true" />
+                <LdCtrlWriteRelMem AppliesTo="full,par" ObjIdx="4" Offset="0" Size="242" Verify="true" />
               </LoadProcedure>
               <LoadProcedure MergeId="7">
                 <LdCtrlLoadImageProp ObjIdx="4" PropId="27" />
@@ -558,6 +572,12 @@
               <ParameterBlock Id="M-00FA_A-0001-01-0000_PB-12" Name="PowerSupply" Text="Power Supply">
                 <ParameterRefRef RefId="M-00FA_A-0001-01-0000_P-62_R-62" />
                 <ParameterRefRef RefId="M-00FA_A-0001-01-0000_P-63_R-63" />
+              </ParameterBlock>
+              <ParameterBlock Id="M-00FA_A-0001-01-0000_PB-13" Name="DayNight" Text="Day / Night">
+                <ParameterRefRef RefId="M-00FA_A-0001-01-0000_P-64_R-64" />
+              </ParameterBlock>
+              <ParameterBlock Id="M-00FA_A-0001-01-0000_PB-14" Name="Startup" Text="Starting">
+                <ParameterRefRef RefId="M-00FA_A-0001-01-0000_P-65_R-65" />
               </ParameterBlock>
             </ChannelIndependentBlock>
           </Dynamic>

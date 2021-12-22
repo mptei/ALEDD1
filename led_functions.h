@@ -125,8 +125,32 @@ void taskDimUpDownStop(byte value){
             dimmer.taskDimDown();
 }
 
+byte scaleToDimmer(byte value)
+{
+    if (!goDayNight.value()) 
+    {
+        return (valueMaxDay - valueMinDay) * value / 255 + valueMinDay;
+    }
+    else
+    {
+        return (valueMaxNight - valueMinNight) * value / 255 + valueMinNight;
+    }
+}
+
+byte scaleToBus(byte value)
+{
+    if (!goDayNight.value()) 
+    {
+        return (value - valueMinDay) * 255 / (valueMaxDay - valueMinDay);
+    }
+    else
+    {
+        return (value - valueMinNight) * 255 / (valueMaxNight - valueMinNight);
+    }
+}
+
 void taskNewValue(byte value){
-    dimmer.taskNewValue(value);
+    dimmer.taskNewValue(scaleToDimmer(value));
 }
 
 color_t colorCorrection(color_t color) {
