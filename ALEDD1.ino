@@ -143,12 +143,8 @@ byte valueMaxNight;
 // The currently used values
 byte valueMin;
 byte valueMax;
-//XML group: Scenes
-byte scene[64];
 //XML group: User color 1-5
 color_t userColors[USERCOLORS];
-byte new3Byte[3] = {0,0,0};
-byte new6Byte[6] = {0,0,0,0,0,0};
 color_t newRGBW;
 color_t valuesRGBW;
 byte newHSV[3] = {0,0,0};

@@ -81,10 +81,6 @@ void taskFunction(){
                 setAll(valuesRGBW);
                 acceptNewRGBW = false;
                 rgbwChanged = false;
-                //reset color because of time out (acceptNewRGBW)
-                new3Byte[0] = 0;
-                new3Byte[1] = 0;
-                new3Byte[2] = 0;
                 dbg_print(F("TASK_RGB done"));
             }
             break;
