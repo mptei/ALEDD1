@@ -4,7 +4,6 @@ void taskFunction(){
         //exit WAIT state
         statusM = (0xFF >> (8-MESSAGES));
     }
-    
 
     switch(currentTask){
         case ALL_OFF:
@@ -18,7 +17,7 @@ void taskFunction(){
             break;
         case YELLOW:
             setAll(yellow);
-			      break;
+            break;
         case GREEN:
             setAll(green);
             break;

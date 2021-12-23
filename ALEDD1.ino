@@ -91,7 +91,7 @@ typedef union {
 #define COLORMASK 0x00FFFFFFUL
 
 const color_t black = COLOR(0,0,0,0);
-const color_t white = COLOR(255,255,255,0);
+const color_t white = COLOR(0,0,0,255);
 const color_t red = COLOR(255,0,0,0);
 const color_t yellow = COLOR(255,0,0,0);
 const color_t green = COLOR(0,255,0,0);
@@ -181,7 +181,7 @@ bool psStateChecked = false;
 unsigned long psStateCheckedMillis = 0;
 bool lastState = false;
 
-bool dayIsOn = false;
+bool onMeansDay = false;
 bool sendOnStartup = false;
 
 //create some instances
@@ -266,13 +266,13 @@ void setup()
         goScene.callback(sceneCallback);
 
         goRedVal.dataPointType(DPT_Percent_U8);
-        goRedVal.callback(redValCallback);
+        goRedVal.callback(colorChannelCallback);
         goGreenVal.dataPointType(DPT_Percent_U8);
-        goGreenVal.callback(greenValCallback);
+        goGreenVal.callback(colorChannelCallback);
         goBlueVal.dataPointType(DPT_Percent_U8);
-        goBlueVal.callback(blueValCallback);
+        goBlueVal.callback(colorChannelCallback);
         goWhiteVal.dataPointType(DPT_Percent_U8);
-        goWhiteVal.callback(whiteValCallback);
+        goWhiteVal.callback(colorChannelCallback);
 
         goRGBW.dataPointType(DPT_Colour_RGBW);
         goRGBW.callback(rgbwCallback);
@@ -354,7 +354,7 @@ void setup()
         valueMaxDay = knx.paramInt(PARAM_dayMax);
         valueMinNight = knx.paramInt(PARAM_nightMin);
         valueMaxNight = knx.paramInt(PARAM_nightMax);
-        dayIsOn = knx.paramByte(PARAM_dayIsOn);
+        onMeansDay = knx.paramByte(PARAM_dayIsOn);
         //set day values until we know if it is day or night
         setDayNightValues(false);
         //XML group: User colors
@@ -511,13 +511,14 @@ void loop()
     }
     if (dimmer.updateAvailable())
     {
-        goDimmerStatus.value(dimmer.getCurrentValue());
-        dbg_print(F("Send dimmer status: %d"), dimmer.getCurrentValue() != 0);
-        if (!dimmer.getCurrentValue()) {
+        byte busValue = scaleToBus(dimmer.getCurrentValue());
+        goDimmerStatus.value(busValue);
+        dbg_print(F("Send dimmer status: %d"), busValue);
+        if (!busValue) {
+            // Switch LEDs off; a message might keep them on
             currentTask = ALL_OFF;
             sendSceneNumber = ALL_OFF; //all off
         }
-        byte busValue = scaleToBus(dimmer.getCurrentValue());
         goDimmerValueStatus.value(busValue);
         dbg_print(F("Send dimmer value status: %d"), busValue);
         dimmer.resetUpdateFlag();

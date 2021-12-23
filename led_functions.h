@@ -127,53 +127,39 @@ void taskDimUpDownStop(byte value){
 
 byte scaleToDimmer(byte value)
 {
-    if (!goDayNight.value()) 
-    {
-        return (valueMaxDay - valueMinDay) * value / 255 + valueMinDay;
-    }
-    else
-    {
-        return (valueMaxNight - valueMinNight) * value / 255 + valueMinNight;
-    }
+    return (dimmer.getMaxValue() - dimmer.getMinValue()) * value / 255 + dimmer.getMinValue();
 }
 
 byte scaleToBus(byte value)
 {
-    if (!goDayNight.value()) 
-    {
-        return (value - valueMinDay) * 255 / (valueMaxDay - valueMinDay);
-    }
-    else
-    {
-        return (value - valueMinNight) * 255 / (valueMaxNight - valueMinNight);
-    }
+    return (value - dimmer.getMinValue()) * 255 / (dimmer.getMaxValue() - dimmer.getMinValue());
 }
 
 void taskNewValue(byte value){
     dimmer.taskNewValue(scaleToDimmer(value));
 }
 
-color_t colorCorrection(color_t color) {
+byte clipValue(byte w, byte color)
+{
+    if (color + w > 255) return 255;
+    return color + w;
+}
+
+color_t colorCorrection(color_t color) 
+{
     color_t corrected;
     //if we have RGB only, try to display mixed white
-    if(!rgbw) {
-        if (color.c.w && !(color.rgbw & COLORMASK)) {
-            corrected.c.r = getLogValue(color.c.w, gammaCorrection, 1, mixedWhite.c.r, 256);
-            corrected.c.g = getLogValue(color.c.w, gammaCorrection, 1, mixedWhite.c.g, 256);
-            corrected.c.b = getLogValue(color.c.w, gammaCorrection, 1, mixedWhite.c.b, 256);
-            corrected.c.w = 0;
-        } else {
-            corrected.c.r = curveR[color.c.r];
-            corrected.c.g = curveG[color.c.g];
-            corrected.c.b = curveB[color.c.b];
-            corrected.c.w = 0;
-        }
-    } else {
-            corrected.c.r = curveR[color.c.r];
-            corrected.c.g = curveG[color.c.g];
-            corrected.c.b = curveB[color.c.b];
-            corrected.c.w = curveW[color.c.w];
-    }
+    if (!rgbw) 
+    {
+        // Convert white channel into RGB and add this to the color channels and clip them.
+        color.c.r = clipValue(getLogValue(color.c.w, gammaCorrection, 1, mixedWhite.c.r, 256), color.c.r);
+        color.c.g = clipValue(getLogValue(color.c.w, gammaCorrection, 1, mixedWhite.c.g, 256), color.c.g);
+        color.c.b = clipValue(getLogValue(color.c.w, gammaCorrection, 1, mixedWhite.c.b, 256), color.c.b);
+    }    
+    corrected.c.r = curveR[color.c.r];
+    corrected.c.g = curveG[color.c.g];
+    corrected.c.b = curveB[color.c.b];
+    corrected.c.w = curveW[color.c.w];
     return corrected;
 }
 
@@ -204,11 +190,6 @@ void setAllHsv(byte h, byte s, byte v){
 void setBrightness(byte value){
     neopixels->setBrightness(value);
     pixelsShow = true;
-}
-
-//function to set LED-values via dimmer library
-void setLeds(byte ch, byte value){
-    new6Byte[2+ch] = value;
 }
 
 /*neopixels->show() tranfers buffer data to physical LEDs
