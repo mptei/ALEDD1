@@ -93,12 +93,12 @@ void initStrip(word pixel, byte type){
 void setDayNightValues(bool night){
     if(night){
         //night values
-        dimmer.setMinValue(valueMinNight);
-        dimmer.setMaxValue(valueMaxNight);
+        valueMin = valueMinNight;
+        valueMax = valueMaxNight;
     }else{
         //day values
-        dimmer.setMinValue(valueMinDay);
-        dimmer.setMaxValue(valueMaxDay);
+        valueMin = valueMinDay;
+        valueMax = valueMaxDay;
     }
 }
 
@@ -125,18 +125,8 @@ void taskDimUpDownStop(byte value){
             dimmer.taskDimDown();
 }
 
-byte scaleToDimmer(byte value)
-{
-    return (dimmer.getMaxValue() - dimmer.getMinValue()) * value / 255 + dimmer.getMinValue();
-}
-
-byte scaleToBus(byte value)
-{
-    return (value - dimmer.getMinValue()) * 255 / (dimmer.getMaxValue() - dimmer.getMinValue());
-}
-
 void taskNewValue(byte value){
-    dimmer.taskNewValue(scaleToDimmer(value));
+    dimmer.taskNewValue(value);
 }
 
 byte clipValue(byte w, byte color)
@@ -188,7 +178,8 @@ void setAllHsv(byte h, byte s, byte v){
 }
 
 void setBrightness(byte value){
-    neopixels->setBrightness(value);
+    byte dimmValue = (valueMax - valueMin) * value / 255 + valueMin;
+    neopixels->setBrightness(dimmValue);
     pixelsShow = true;
 }
 

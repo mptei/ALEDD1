@@ -9,7 +9,7 @@ void changeTask(byte newTask)
 // Returns true if the dimmer state is off
 boolean isDimmerOff()
 {
-    return dimmer.getCurrentValue() == dimmer.getMinValue();
+    return dimmer.getCurrentValue() == 0;
 }
 
 void dimmSwitchCallback(GroupObject &go)
@@ -136,7 +136,6 @@ void msgCallback(GroupObject &go)
 void dayNightCallback(GroupObject &go)
 {
     dbg_print(F("dayNightCallback"));
-    byte dimmValue = scaleToBus(dimmer.getCurrentValue());
     setDayNightValues(!(onMeansDay ^ (bool)go.value()));
-    taskNewValue(dimmValue);
+    setBrightness(dimmer.getCurrentValue());
 }

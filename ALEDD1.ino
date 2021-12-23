@@ -140,6 +140,9 @@ byte valueMinDay;
 byte valueMaxDay;
 byte valueMinNight;
 byte valueMaxNight;
+// The currently used values
+byte valueMin;
+byte valueMax;
 //XML group: Scenes
 byte scene[64];
 //XML group: User color 1-5
@@ -511,16 +514,16 @@ void loop()
     }
     if (dimmer.updateAvailable())
     {
-        byte busValue = scaleToBus(dimmer.getCurrentValue());
-        goDimmerStatus.value(busValue);
-        dbg_print(F("Send dimmer status: %d"), busValue);
-        if (!busValue) {
+        byte dimmValue = dimmer.getCurrentValue();
+        goDimmerStatus.value(dimmValue);
+        dbg_print(F("Send dimmer status: %d"), dimmValue);
+        if (!dimmValue) {
             // Switch LEDs off; a message might keep them on
             currentTask = ALL_OFF;
             sendSceneNumber = ALL_OFF; //all off
         }
-        goDimmerValueStatus.value(busValue);
-        dbg_print(F("Send dimmer value status: %d"), busValue);
+        goDimmerValueStatus.value(dimmValue);
+        dbg_print(F("Send dimmer value status: %d"), dimmValue);
         dimmer.resetUpdateFlag();
     }
     if (sendSceneNumber < 64)
