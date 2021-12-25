@@ -325,9 +325,114 @@ void twobrushcolormixing() {
 
 }
 
+#define WMSHIFT 4
+#define WMSTEP 16
+static uint32_t wmBrightness;
 void whitemiddleon() {
-  //ToDo:
+    if (initialized == false) {
+        initialized = true;
+        wmBrightness = 0;
+    }
+
+    wmBrightness ++;
+
+    byte middle = numberLeds / 2;
+    uint32_t brightness = wmBrightness >> WMSHIFT;
+    for (byte idx = 0; idx <= middle; ++idx) 
+    {
+        byte rgb = brightness >= 255 ? 255 : brightness;
+        uint32_t ledNum;
+        if (numberLeds - idx >= middle)
+        {
+            ledNum = middle + idx;
+        }
+        else
+        {
+            ledNum = numberLeds - 1;
+        }
+        neopixels->setPixelColor(ledNum, rgb, rgb, rgb);
+
+        if (middle >= idx)
+        {
+            ledNum = middle - idx;
+        }
+        else
+        {
+            ledNum = 0;
+        }
+        neopixels->setPixelColor(ledNum, rgb, rgb, rgb);
+        if (!ledNum)
+        {
+            if (brightness >= 255)
+            {
+                currentTask = TASK_IDLE;
+                sendSceneNumber = WHITE;
+            }
+        }
+        if (brightness > WMSTEP)
+        {
+            brightness -= WMSTEP;
+        }
+        else
+        {
+            brightness = 0;
+        }
+    }
+  
+    pixelsShow = true;
 }
+
 void whitemiddleoff() {
+    if (initialized == false) {
+        initialized = true;
+        wmBrightness = (255 + numberLeds/2 * WMSTEP) << WMSHIFT;
+    }
+
+    wmBrightness --;
+
+    byte middle = numberLeds / 2;
+    uint32_t brightness = wmBrightness >> WMSHIFT;
+    for (byte idx = 0; idx <= middle; ++idx) 
+    {
+        byte rgb = brightness >= 255 ? 255 : brightness;
+        uint32_t ledNum;
+        if (numberLeds - idx >= middle)
+        {
+            ledNum = middle + idx;
+        }
+        else
+        {
+            ledNum = numberLeds - 1;
+        }
+        neopixels->setPixelColor(ledNum, rgb, rgb, rgb);
+
+        if (middle >= idx)
+        {
+            ledNum = middle - idx;
+        }
+        else
+        {
+            ledNum = 0;
+        }
+        neopixels->setPixelColor(ledNum, rgb, rgb, rgb);
+        if (ledNum == middle)
+        {
+            if (!brightness)
+            {
+                currentTask = TASK_IDLE;
+                sendSceneNumber = ALL_OFF;
+            }
+        }
+        if (brightness > WMSTEP)
+        {
+            brightness -= WMSTEP;
+        }
+        else
+        {
+            brightness = 0;
+        }
+    }
+  
+    pixelsShow = true;
 
 }
