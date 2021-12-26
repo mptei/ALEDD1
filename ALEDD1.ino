@@ -1,40 +1,12 @@
 #include <Arduino.h>
 
-#include <stdarg.h>
+
 // Activate debugging output
 #define DBG_PRINT
 #define DBG_SERIAL SerialUSB
-void dbg_init()
-{
-#ifdef DBG_PRINT
-    DBG_SERIAL.begin(115200);
-    while (!DBG_SERIAL);
-#endif
-}
-void dbg_print(const __FlashStringHelper *format, ...)
-{
-#ifdef DBG_PRINT
-    if (true) {
-
-        char buf[128]; // limit to 128chars
-        va_list args;
-        va_start(args, format);
-
-#if defined(__AVR__) || defined(ESP8266) || defined(ARDUINO_ARCH_STM32)
-        vsnprintf_P(buf, sizeof (buf), (const char *) format, args); // progmem for AVR and ESP8266
-#else
-        vsnprintf(buf, sizeof (buf), (const char *) format, args); // for rest of the world
-#endif    
-
-        va_end(args);
-        DBG_SERIAL.println(buf);
-    }
-#endif
-}
+#include "dbg_print.h"
 
 #include <knx.h>
-
-#include "wiring_private.h"
 
 #if MASK_VERSION != 0x07B0 && (defined ARDUINO_ARCH_ESP8266 || defined ARDUINO_ARCH_ESP32)
 #include <WiFiManager.h>
@@ -45,10 +17,7 @@ void dbg_print(const __FlashStringHelper *format, ...)
 #include <Adafruit_NeoPixel_ZeroDMA.h>
 #include <NeoPixelPainter.h>
 
-//#include "kdevice_ALEDD1.h"
-#define LED_STRIP_PIN 22  //LED shield
-#define POWER_SUPPLY_PIN 8 //active low
-
+#include "hwdef.h"
 #include "defines.h"
 
 // create named references for easy access to group objects
@@ -170,18 +139,17 @@ struct msg {
 
 //XML group: Power supply control
 bool allLedsOff = true;
-bool powerSupplyState = false;
+bool powerSupplyReady = false;
 bool powerSupplyTurnOn = false;
 bool powerSupplyTurnOff = false;
 bool powerSupplyControl = false;
-unsigned long powerSupplyOffDelay = 30000; 
-unsigned long powerSupplyOffMillis = 0;
-bool psStateChecked = false;
-unsigned long psStateCheckedMillis = 0;
-bool lastState = false;
+unsigned long powerSupplyOffDelay; 
+unsigned long powerSupplyOffMillis;
+unsigned long psStateCheckedMillis;
+bool lastPowerSupplyReady;
 
-bool onMeansDay = false;
-bool sendOnStartup = false;
+bool onMeansDay;
+bool sendOnStartup;
 
 //create some instances
 Adafruit_NeoPixel_ZeroDMA *neopixels;
@@ -208,26 +176,6 @@ float maxValue = 0;
 float minValue = RAND_MAX;
 long lastsend = 0;
 
-// Setup KNX serial on unusual pins
-class UartKNX : public Uart
-{
-public:
-    UartKNX() : Uart(&sercom2, 3, 1, SERCOM_RX_PAD_1, UART_TX_PAD_2)
-    {
-    }
-    void begin(unsigned long baudrate, uint16_t config)
-    {
-        Uart::begin(baudrate, config);
-        pinPeripheral(3, PIO_SERCOM_ALT);
-        pinPeripheral(1, PIO_SERCOM_ALT);
-    }
-};
-UartKNX SerialKNX;
-//Interrupt handler for SerialKNX
-void SERCOM2_Handler()
-{
-    SerialKNX.IrqHandler();
-}
 
 void setup()
 {
@@ -235,6 +183,8 @@ void setup()
 #ifdef DBG_PRINT
     ArduinoPlatform::SerialDebug = &DBG_SERIAL;
 #endif
+
+    pinMode(POWER_SUPPLY_PIN, INPUT);
 
     randomSeed(millis());
 
@@ -380,7 +330,7 @@ void setup()
         powerSupplyControl = knx.paramByte(PARAM_psControl);
         powerSupplyOffDelay = knx.paramInt(PARAM_psDelay) * 60000;
         if(!powerSupplyControl){
-            powerSupplyState = true;
+            powerSupplyReady = true;
         }
 
         sendOnStartup = knx.paramByte(PARAM_statusOnStart);
@@ -398,27 +348,58 @@ void setup()
         neopixels->setBrightness(0);
         pixelsShow = true;
     }
+    else
+    {
+        testStrip();
+    }
+
+    {
+        dbg_print(F("PowerSupplyPin raw: %d"), digitalRead(POWER_SUPPLY_PIN));
+        dbg_print(F("PowerSupplyPin proc: %d"), POWER_SUPPLY_PIN_ACTIVE digitalRead(POWER_SUPPLY_PIN));
+    }
 
     // pin or GPIO the programming led is connected to. Default is LED_BUILTIN
-    knx.ledPin(LED_BUILTIN);
+    knx.ledPin(PROG_LED_PIN);
     // is the led active on HIGH or low? Default is LOW
     knx.ledPinActiveOn(HIGH);
     // pin or GPIO programming button is connected to. Default is 0
-    // knx.buttonPin(0);
+    knx.buttonPin(PROG_BUTTON_PIN);
+    // RISING or FALLING edge to react
+    knx.buttonPinInterruptOn(PROG_BUTTON_INT);
+    // The UART to use
     knx.platform().knxUart(&SerialKNX);
 
     // start the framework.
     knx.start();
 
-    if (!knx.configured()) {
-        testStrip();
-
-        // Go into programming mode by default
+    if (!knx.configured())
+    {
         knx.progMode(true);
     }
+
 }
 
 void powerSupply(){
+
+    {
+        bool currentPowerReady = POWER_SUPPLY_PIN_ACTIVE digitalRead(POWER_SUPPLY_PIN);
+        if (lastPowerSupplyReady != currentPowerReady)
+        {
+            psStateCheckedMillis = millis();
+            lastPowerSupplyReady = currentPowerReady;
+            dbg_print(F("Pin changed: %d"), currentPowerReady);
+        }
+        if (psStateCheckedMillis && (millis() - psStateCheckedMillis >= 100))
+        {
+            psStateCheckedMillis = 0;
+            if (currentPowerReady != powerSupplyReady)
+            {
+                powerSupplyReady = currentPowerReady;
+                dbg_print(F("PowerSupply ready: %d"), powerSupplyReady);
+            }
+        }
+    }
+
     if(powerSupplyControl){
         if(!lastStaticColor.rgbw &&
            !msg[0].lastValue && !msg[1].lastValue && !msg[2].lastValue && !msg[3].lastValue && currentTask == TASK_IDLE){
@@ -426,21 +407,21 @@ void powerSupply(){
         }else{
             allLedsOff = false;
         }
-        if(powerSupplyTurnOn && !powerSupplyState){
+        if(powerSupplyTurnOn && !powerSupplyReady && !goPowerSupply.value()){
             goPowerSupply.value(true);
             dbg_print(F("Turn PS on!"));
             powerSupplyTurnOn = false;
         }
-        if(powerSupplyState && allLedsOff && !powerSupplyTurnOff){//power supply is on and all LEDs are off => start to 'turn off power supply' routine
+        if(powerSupplyReady && allLedsOff && !powerSupplyTurnOff){//power supply is on and all LEDs are off => start to 'turn off power supply' routine
             powerSupplyTurnOff = true;
             powerSupplyOffMillis = millis();
             dbg_print(F("All LEDs are off, start 'turn off power supply' routine"));
         }
-        if(powerSupplyState && !allLedsOff && powerSupplyTurnOff){//power supply is on and some LEDs are on => PS stays on
+        if(powerSupplyReady && !allLedsOff && powerSupplyTurnOff){//power supply is on and some LEDs are on => PS stays on
             powerSupplyTurnOff = false;
             dbg_print(F("Some LEDs are on, stop 'turn off power supply' routine"));
         }
-        if(!powerSupplyState && allLedsOff && powerSupplyTurnOff){//stop "power off" routine, PS is already off
+        if(!powerSupplyReady && allLedsOff && powerSupplyTurnOff){//stop "power off" routine, PS is already off
             dbg_print(F("All LEDs are off, Power Supply is also off, stop 'turn off power supply' routine"));
             powerSupplyTurnOff = false;
         }
@@ -462,23 +443,7 @@ void loop()
     if (!knx.configured())
         return;
 
-    if (psStateChecked && millis() - psStateCheckedMillis >= 100)
-    { //debounce
-        psStateChecked = false;
-    }
-    if (!psStateChecked)
-    {
-        powerSupplyState = 1; //!digitalRead(POWER_SUPPLY_PIN); //low = ON, high = OFF
-        psStateCheckedMillis = millis();
-        psStateChecked = true;
-        if (lastState != powerSupplyState)
-        {
-            lastState = powerSupplyState;
-            dbg_print(F("PowerSupply state: %d"), powerSupplyState);
-        }
-    }
-
-    if (powerSupplyState)
+    if (powerSupplyReady)
     { //wait until PS is on...
         dimmer.task();
         taskFunction();

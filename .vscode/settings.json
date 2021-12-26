@@ -14,6 +14,7 @@
         "istream": "cpp",
         "sstream": "cpp",
         "optional": "cpp",
-        "system_error": "cpp"
+        "system_error": "cpp",
+        "algorithm": "cpp"
     }
 }
