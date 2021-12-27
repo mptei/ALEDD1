@@ -139,10 +139,10 @@ struct msg {
 
 //XML group: Power supply control
 bool allLedsOff = true;
-bool powerSupplyReady = false;
-bool powerSupplyTurnOn = false;
-bool powerSupplyTurnOff = false;
-bool powerSupplyControl = false;
+bool powerSupplyReady;
+bool powerSupplyTurnOn;
+bool powerSupplyTurnOff;
+bool powerSupplyControl;
 unsigned long powerSupplyOffDelay; 
 unsigned long powerSupplyOffMillis;
 unsigned long psStateCheckedMillis;
@@ -353,11 +353,6 @@ void setup()
         testStrip();
     }
 
-    {
-        dbg_print(F("PowerSupplyPin raw: %d"), digitalRead(POWER_SUPPLY_PIN));
-        dbg_print(F("PowerSupplyPin proc: %d"), POWER_SUPPLY_PIN_ACTIVE digitalRead(POWER_SUPPLY_PIN));
-    }
-
     // pin or GPIO the programming led is connected to. Default is LED_BUILTIN
     knx.ledPin(PROG_LED_PIN);
     // is the led active on HIGH or low? Default is LOW
@@ -396,6 +391,16 @@ void powerSupply(){
             {
                 powerSupplyReady = currentPowerReady;
                 dbg_print(F("PowerSupply ready: %d"), powerSupplyReady);
+                if (!powerSupplyReady)
+                {
+                    // No power anymore => switch off
+                    dimmer.taskOff();
+                    dimmer.task();
+                    dimmer.task();
+                    setAll(black);
+                    pixelsShow = true;
+                    showPixels();
+                }
             }
         }
     }
@@ -407,7 +412,7 @@ void powerSupply(){
         }else{
             allLedsOff = false;
         }
-        if(powerSupplyTurnOn && !powerSupplyReady && !goPowerSupply.value()){
+        if(powerSupplyTurnOn && !powerSupplyReady){
             goPowerSupply.value(true);
             dbg_print(F("Turn PS on!"));
             powerSupplyTurnOn = false;
@@ -443,9 +448,11 @@ void loop()
     if (!knx.configured())
         return;
 
-    if (powerSupplyReady)
-    { //wait until PS is on...
+    if (!isDimmerOff() || powerSupplyReady)
+    {
+        // Handle dimming
         dimmer.task();
+        // Run tasks 
         taskFunction();
     }
     powerSupply();

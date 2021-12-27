@@ -12,16 +12,26 @@ boolean isDimmerOff()
     return dimmer.getCurrentValue() == 0;
 }
 
+void needPower()
+{
+    if (!powerSupplyReady)
+    {
+        dbg_print(F("turn Power on"));
+        powerSupplyTurnOn = true;
+    }
+}
+
+
 void dimmSwitchCallback(GroupObject &go)
 {
     dbg_print(F("dimmSwitchCallback"));
     bool tmpBool = false;
-    powerSupplyTurnOn = true; //dirty solution: if PS is off and LEDs are off and next command is "turn all off" PS will go on... and after timeout off. Is this a real use case?!
     tmpBool = (bool)go.value();
     taskSoftOnOff(tmpBool);
     dbg_print(F("taskSoftOnOff: %d"), tmpBool);
     // Switching on still turns into white
     if (tmpBool) {
+        needPower();
         changeTask(WHITE);
     }
 }
@@ -29,7 +39,7 @@ void dimmSwitchCallback(GroupObject &go)
 void dimmRelCallback(GroupObject &go)
 {
     dbg_print(F("dimmRelCallback"));
-    powerSupplyTurnOn = true; //dirty solution: if PS is off and LEDs are off and next command is "turn all off" PS will go on... and after timeout off. Is this a real use case?!
+    needPower();
     byte newValue = *go.valueRef();
     taskDimUpDownStop(newValue);
     dbg_print(F("taskDimUpDownStop: %d"), newValue);
@@ -38,12 +48,15 @@ void dimmRelCallback(GroupObject &go)
 void dimmAbsCallback(GroupObject &go)
 {
     dbg_print(F("dimmAbsCallback"));
-    powerSupplyTurnOn = true; //dirty solution: if PS is off and LEDs are off and next command is "turn all off" PS will go on... and after timeout off. Is this a real use case?!
     byte newValue = (byte)go.value();
     if (isDimmerOff() || lastTask == ALL_OFF) {
         changeTask(WHITE);
     }
     taskNewValue(newValue);
+    if (newValue)
+    {
+        needPower();
+    }
     dbg_print(F("taskNewValue: %d"), newValue);
 }
       
@@ -51,7 +64,6 @@ void sceneCallback(GroupObject &go)
 {
     dbg_print(F("sceneCallback"));
     lastTask = currentTask;
-    powerSupplyTurnOn = true; //dirty solution: if PS is off and LEDs are off and next command is "turn all off" PS will go on... and after timeout off. Is this a real use case?!
     byte newTask = go.value();
     dbg_print(F("newTask: 0x%02X"), newTask);
     if (newTask != 0xFF) {
@@ -60,6 +72,7 @@ void sceneCallback(GroupObject &go)
         initialized = false;
     }
     if (isDimmerOff()) {
+        needPower();
         taskSoftOnOff(true);
     }
 }
@@ -67,7 +80,7 @@ void sceneCallback(GroupObject &go)
 
 void colorChannelCallback(GroupObject &go)
 {
-    powerSupplyTurnOn = true; //dirty solution: if PS is off and LEDs are off and next command is "turn all off" PS will go on... and after timeout off. Is this a real use case?!
+    needPower();
 
     rgbwChanged = true;
     rgbwChangedMillis = millis();
@@ -87,7 +100,7 @@ void rgbwCallback(GroupObject &go) // RGBW 251.600
 {
     dbg_print(F("rgbwCallback"));
     lastTask = currentTask;
-    powerSupplyTurnOn = true; //dirty solution: if PS is off and LEDs are off and next command is "turn all off" PS will go on... and after timeout off. Is this a real use case?!
+    needPower();
     acceptNewRGBW = true;
     uint32_t newValue = (uint32_t)go.value();
     valuesRGBW.rgbw = newValue;
