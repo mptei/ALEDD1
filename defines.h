@@ -5,8 +5,6 @@
 #define DPT3_007_MASK_STEP      0b0111
 #define DPT3_007_STOP           0b0000
 
-
-
 //Scene 1 .. 9
 #define ALL_OFF 0x00  //1
 #define WHITE 0x01    //2
@@ -53,10 +51,3 @@
 #define G 1
 #define B 2
 #define W 3
-
-#define DEBOUNCE 80 //ms
-
-#define M_OFF       0
-#define M_OFF_WAIT  2
-#define M_ON        1
-#define M_ON_WAIT   3

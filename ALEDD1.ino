@@ -482,17 +482,21 @@ void loop()
     }
     if (dimmer.updateAvailable())
     {
+        dimmer.resetUpdateFlag();
+
         byte dimmValue = dimmer.getCurrentValue();
-        goDimmerStatus.value(dimmValue);
-        dbg_print(F("Send dimmer status: %d"), dimmValue);
+
+        goDimmerStatus.value(dimmValue != 0);
+        dbg_print(F("Send dimmer status: %d"), dimmValue != 0);
+
+        goDimmerValueStatus.value(dimmValue);
+        dbg_print(F("Send dimmer value status: %d"), dimmValue);
+        
         if (!dimmValue) {
             // Switch LEDs off; a message might keep them on
             currentTask = ALL_OFF;
             sendSceneNumber = ALL_OFF; //all off
         }
-        goDimmerValueStatus.value(dimmValue);
-        dbg_print(F("Send dimmer value status: %d"), dimmValue);
-        dimmer.resetUpdateFlag();
     }
     if (sendSceneNumber < 64)
     {
