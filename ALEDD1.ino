@@ -20,32 +20,11 @@
 #include "hwdef.h"
 #include "defines.h"
 
-// create named references for easy access to group objects
-#define goDimmer knx.getGroupObject(1)
-#define goDimmerRel knx.getGroupObject(2)
-#define goDimmerAbs knx.getGroupObject(3)
-#define goDimmerStatus knx.getGroupObject(4)
-#define goDimmerValueStatus knx.getGroupObject(5)
+#include "generated/knx_defines.h"
 
-#define goScene knx.getGroupObject(6)
-#define goRedVal knx.getGroupObject(7)
-#define goGreenVal knx.getGroupObject(8)
-#define goBlueVal knx.getGroupObject(9)
-#define goWhiteVal knx.getGroupObject(10)
 
-#define goRGBW knx.getGroupObject(12)
-
-#define goSceneStatus knx.getGroupObject(17)
-
-#define MSGGOSIZE 4
-#define goMsgSwitch(NUM) knx.getGroupObject(18+NUM*MSGGOSIZE)
-#define goMsgPercent(NUM) knx.getGroupObject(19+NUM*MSGGOSIZE)
-#define goMsgRGB(NUM) knx.getGroupObject(20+NUM*MSGGOSIZE)
-#define goMsgRGBW(NUM) knx.getGroupObject(21+NUM*MSGGOSIZE)
-
-#define goPowerSupply knx.getGroupObject(34)
-
-#define goDayNight knx.getGroupObject(35)
+// Number of group objects per message
+#define MSGGOCNT 4
 
 typedef union {
     uint32_t rgbw;
@@ -133,8 +112,9 @@ struct msg {
     byte newValue; //0 = all LEDs off, 1-255 corresponds to percentage of leds (255 = all LEDs are on, 127 = only 50% of LEDs are on)
     byte lastValue;
     word ledFirst;
-    word ledLast;
+    word ledCnt;
     color_t ledColor;
+    bool blink;
 } msg[MESSAGES];
 
 //XML group: Power supply control
@@ -199,141 +179,108 @@ void setup()
     // print values of parameters if device is already configured
     if (knx.configured())
     {
-        goDimmer.dataPointType(DPT_Switch);
-        goDimmer.callback(dimmSwitchCallback);
+        go_Dimmer_Switch.dataPointType(DPT_Switch);
+        go_Dimmer_Switch.callback(dimmSwitchCallback);
 
-        goDimmerRel.dataPointType(DPT_Control_Dimming);
-        goDimmerRel.callback(dimmRelCallback);
+        go_Dimmer_Dimming_relativ.dataPointType(DPT_Control_Dimming);
+        go_Dimmer_Dimming_relativ.callback(dimmRelCallback);
 
-        goDimmerAbs.dataPointType(DPT_Percent_U8);
-        goDimmerAbs.callback(dimmAbsCallback);
+        go_Dimmer_Dimming_absolute.dataPointType(DPT_Percent_U8);
+        go_Dimmer_Dimming_absolute.callback(dimmAbsCallback);
 
-        goDimmerStatus.dataPointType(DPT_Switch);
-        goDimmerValueStatus.dataPointType(DPT_Percent_U8);
+        go_Dimmer_Switch_status.dataPointType(DPT_Switch);
+        go_Dimmer_Dimm_status.dataPointType(DPT_Percent_U8);
 
-        goScene.dataPointType(DPT_SceneNumber);
-        goScene.callback(sceneCallback);
+        go_Scene_Value.dataPointType(DPT_SceneNumber);
+        go_Scene_Value.callback(sceneCallback);
 
-        goRedVal.dataPointType(DPT_Percent_U8);
-        goRedVal.callback(colorChannelCallback);
-        goGreenVal.dataPointType(DPT_Percent_U8);
-        goGreenVal.callback(colorChannelCallback);
-        goBlueVal.dataPointType(DPT_Percent_U8);
-        goBlueVal.callback(colorChannelCallback);
-        goWhiteVal.dataPointType(DPT_Percent_U8);
-        goWhiteVal.callback(colorChannelCallback);
+        go_Red_Value.dataPointType(DPT_Percent_U8);
+        go_Red_Value.callback(colorChannelCallback);
+        go_Green_Value.dataPointType(DPT_Percent_U8);
+        go_Green_Value.callback(colorChannelCallback);
+        go_Blue_Value.dataPointType(DPT_Percent_U8);
+        go_Blue_Value.callback(colorChannelCallback);
+        go_White_Value.dataPointType(DPT_Percent_U8);
+        go_White_Value.callback(colorChannelCallback);
 
-        goRGBW.dataPointType(DPT_Colour_RGBW);
-        goRGBW.callback(rgbwCallback);
+        go_RGB_RGB_Value.dataPointType(DPT_Colour_RGB);
+        go_RGB_RGB_Value.callback(rgbCallback);
 
-        goSceneStatus.dataPointType(DPT_SceneNumber);
-        goPowerSupply.dataPointType(DPT_Switch);
+        go_RGBW_RGBW_Value.dataPointType(DPT_Colour_RGBW);
+        go_RGBW_RGBW_Value.callback(rgbwCallback);
+
+        go_Scene_Scene_status.dataPointType(DPT_SceneNumber);
+        go_Power_supply_Switch.dataPointType(DPT_Switch);
 
         for (byte mc = 0; mc < MESSAGES; mc++) {
-            goMsgSwitch(mc).dataPointType(DPT_Switch);
-            goMsgSwitch(mc).callback(msgCallback);
-            goMsgPercent(mc).dataPointType(DPT_Percent_U8);
-            goMsgPercent(mc).callback(msgCallback);
-            goMsgRGB(mc).dataPointType(DPT_Colour_RGB);
-            goMsgRGB(mc).callback(msgCallback);
-            goMsgRGBW(mc).dataPointType(DPT_Colour_RGBW);
-            goMsgRGBW(mc).callback(msgCallback);
+            knx.getGroupObject(NUM_Message_1_Switch + mc*MSGGOCNT).dataPointType(DPT_Switch);
+            knx.getGroupObject(NUM_Message_1_Switch + mc*MSGGOCNT).callback(msgCallback);
+            knx.getGroupObject(NUM_Message_1_Percentage + mc*MSGGOCNT).dataPointType(DPT_Percent_U8);
+            knx.getGroupObject(NUM_Message_1_Percentage + mc*MSGGOCNT).callback(msgCallback);
+            knx.getGroupObject(NUM_Message_1_Color_RGB + mc*MSGGOCNT).dataPointType(DPT_Colour_RGB);
+            knx.getGroupObject(NUM_Message_1_Color_RGB + mc*MSGGOCNT).callback(msgCallback);
+            knx.getGroupObject(NUM_Message_1_Color_RGBW + mc*MSGGOCNT).dataPointType(DPT_Colour_RGBW);
+            knx.getGroupObject(NUM_Message_1_Color_RGBW + mc*MSGGOCNT).callback(msgCallback);
         }
 
-        goDayNight.dataPointType(DPT_Switch);
-        goDayNight.callback(dayNightCallback);
-
-#define PARM_ledType            0
-#define PARM_numbersLedsStrip   1
-#define PARM_firstOnValue       5
-#define PARAM_rCorrection       9      
-#define PARAM_gCorrection       13      
-#define PARAM_bCorrection       17
-#define PARAM_wCorrection       21
-#define PARAM_gammaCorrection   25
-#define PARAM_wr                29
-#define PARAM_wg                33
-#define PARAM_wb                37
-
-#define PARAM_timeSoft          41
-#define PARAM_timeRel           42
-#define PARAM_dayMin            43
-#define PARAM_dayMax            47
-#define PARAM_nightMin          51
-#define PARAM_nightMax          55
-
-#define PARAM_uc1r              59
-#define PARAM_uc1g              63
-#define PARAM_uc1b              67
-#define PARAM_uc1w              71
-
-#define PARAM_m1first          139
-#define PARAM_m1last           143
-#define PARAM_m1r              147
-#define PARAM_m1g              151
-#define PARAM_m1b              155
-#define PARAM_m1w              159
-
-#define PARAM_psControl        235
-#define PARAM_psDelay          236
-
-#define PARAM_dayIsOn          240
-#define PARAM_statusOnStart    241
+        go_DayNight_Day_Night.dataPointType(DPT_Switch);
+        go_DayNight_Day_Night.callback(dayNightCallback);
 
         //XML group: LED
-        ledType = knx.paramByte(PARM_ledType);
+        ledType = PARMVAL_ledType();
         if(ledType == NEO_RGB || ledType == NEO_RBG || ledType == NEO_GRB || 
            ledType == NEO_GBR || ledType == NEO_BRG || ledType == NEO_BGR) rgbw = false;
-        numberLeds = knx.paramInt(PARM_numbersLedsStrip);
-        firstOnValue = knx.paramInt(5);
-        maxR = knx.paramInt(PARAM_rCorrection);
-        maxG = knx.paramInt(PARAM_gCorrection);
-        maxB = knx.paramInt(PARAM_bCorrection);
-        maxW = knx.paramInt(PARAM_wCorrection);
-        gammaCorrection = knx.paramInt(PARAM_gammaCorrection) * 0.1;
-        mixedWhite.c.r = knx.paramInt(PARAM_wr);
-        mixedWhite.c.g = knx.paramInt(PARAM_wg);
-        mixedWhite.c.b = knx.paramInt(PARAM_wb);
+        numberLeds = PARMVAL_numbersLedsStrip();
+        firstOnValue = PARMVAL_firstOnValue();
+        maxR = PARMVAL_rCorrection();
+        maxG = PARMVAL_gCorrection();
+        maxB = PARMVAL_bCorrection();
+        maxW = PARMVAL_wCorrection();
+        gammaCorrection = PARMVAL_gammaCorrection() * 0.1;
+        mixedWhite.c.r = PARMVAL_wr();
+        mixedWhite.c.g = PARMVAL_wg();
+        mixedWhite.c.b = PARMVAL_wb();
         //XML group: Dimmer
-        dimmer.setDurationAbsolute(softOnOffTimeList[knx.paramByte(PARAM_timeSoft)] * 100);
-        dimmer.setDurationRelative(relDimTimeList[knx.paramByte(PARAM_timeRel)] * 1000);
+        dimmer.setDurationAbsolute(softOnOffTimeList[PARMVAL_timeSoft()] * 100);
+        dimmer.setDurationRelative(relDimTimeList[PARMVAL_timeRel()] * 1000);
         //dimmer.setValueFunction(&setLeds);
         dimmer.setValueFunction(&setBrightness);
-        valueMinDay = knx.paramInt(PARAM_dayMin);
-        valueMaxDay = knx.paramInt(PARAM_dayMax);
-        valueMinNight = knx.paramInt(PARAM_nightMin);
-        valueMaxNight = knx.paramInt(PARAM_nightMax);
-        onMeansDay = knx.paramByte(PARAM_dayIsOn);
+        valueMinDay = PARMVAL_dayMin();
+        valueMaxDay = PARMVAL_dayMax();
+        valueMinNight = PARMVAL_nightMin();
+        valueMaxNight = PARMVAL_nightMax();
+        onMeansDay = PARMVAL_dayIsOn();
         //set day values until we know if it is day or night
         setDayNightValues(false);
         //XML group: User colors
 #define UCSIZE (4 * 4)
         for (byte uc = 0; uc < USERCOLORS; uc++) {
             userColors[uc].rgbw = 
-                ((uint8_t)knx.paramInt(PARAM_uc1r + uc * UCSIZE)) << 16
-                |((uint8_t)knx.paramInt(PARAM_uc1g + uc * UCSIZE)) << 8
-                |((uint8_t)knx.paramInt(PARAM_uc1b + uc * UCSIZE))
-                |((uint8_t)knx.paramInt(PARAM_uc1w + uc * UCSIZE) << 24)
+                ((uint8_t)knx.paramInt(PARM_uc1r + uc * UCSIZE)) << 16
+                |((uint8_t)knx.paramInt(PARM_uc1g + uc * UCSIZE)) << 8
+                |((uint8_t)knx.paramInt(PARM_uc1b + uc * UCSIZE))
+                |((uint8_t)knx.paramInt(PARM_uc1w + uc * UCSIZE) << 24)
                 ;
         }
         //XML group: Messages:
-#define MSGSIZE (6 * 4)
+#define MSGSIZE (6 * 4 + 1)
         for (byte mc = 0; mc < MESSAGES; mc++) {
-            msg[mc].ledFirst    = knx.paramInt(PARAM_m1first + MSGSIZE * mc) - 1; //Code: count from 0.., Suite: Count from 1..
-            msg[mc].ledLast     = knx.paramInt(PARAM_m1last + MSGSIZE * mc) - 1;
-            msg[mc].ledColor.c.r = knx.paramInt(PARAM_m1r + MSGSIZE * mc);
-            msg[mc].ledColor.c.g = knx.paramInt(PARAM_m1g + MSGSIZE * mc);
-            msg[mc].ledColor.c.b = knx.paramInt(PARAM_m1b + MSGSIZE * mc);
-            msg[mc].ledColor.c.w = knx.paramInt(PARAM_m1w + MSGSIZE * mc);
+            msg[mc].ledFirst     = knx.paramInt(PARM_m1first + MSGSIZE * mc) - 1; //Code: count from 0.., Suite: Count from 1..
+            msg[mc].ledCnt       = knx.paramInt(PARM_m1cnt + MSGSIZE * mc) - 1;
+            msg[mc].ledColor.c.r = knx.paramInt(PARM_m1r + MSGSIZE * mc);
+            msg[mc].ledColor.c.g = knx.paramInt(PARM_m1g + MSGSIZE * mc);
+            msg[mc].ledColor.c.b = knx.paramInt(PARM_m1b + MSGSIZE * mc);
+            msg[mc].ledColor.c.w = knx.paramInt(PARM_m1w + MSGSIZE * mc);
+            msg[mc].blink        = knx.paramByte(PARM_m1blink + MSGSIZE * mc);
         }
         //XML group: power supply
-        powerSupplyControl = knx.paramByte(PARAM_psControl);
-        powerSupplyOffDelay = knx.paramInt(PARAM_psDelay) * 60000;
+        powerSupplyControl = PARMVAL_psControl();
+        powerSupplyOffDelay = knx.paramInt(PARM_psDelay) * 60000;
         if(!powerSupplyControl){
             powerSupplyReady = true;
         }
 
-        sendOnStartup = knx.paramByte(PARAM_statusOnStart);
+        sendOnStartup = PARMVAL_statusOnStart();
         
 
         dbg_print(F("LED_Type: 0x%02x"), ledType);
@@ -413,7 +360,7 @@ void powerSupply(){
             allLedsOff = false;
         }
         if(powerSupplyTurnOn && !powerSupplyReady){
-            goPowerSupply.value(true);
+            go_Power_supply_Switch.value(true);
             dbg_print(F("Turn PS on!"));
             powerSupplyTurnOn = false;
         }
@@ -432,7 +379,7 @@ void powerSupply(){
         }
         if(powerSupplyTurnOff && (millis() - powerSupplyOffMillis) >= powerSupplyOffDelay){
             dbg_print(F("Time is over, turn PS off"));
-            goPowerSupply.value(false);
+            go_Power_supply_Switch.value(false);
             powerSupplyTurnOff = false;
         }
     }
@@ -486,10 +433,10 @@ void loop()
 
         byte dimmValue = dimmer.getCurrentValue();
 
-        goDimmerStatus.value(dimmValue != 0);
+        go_Dimmer_Switch_status.value(dimmValue != 0);
         dbg_print(F("Send dimmer status: %d"), dimmValue != 0);
 
-        goDimmerValueStatus.value(dimmValue);
+        go_Dimmer_Dimm_status.value(dimmValue);
         dbg_print(F("Send dimmer value status: %d"), dimmValue);
         
         if (!dimmValue) {
@@ -501,7 +448,7 @@ void loop()
     if (sendSceneNumber < 64)
     {
         dbg_print(F("Send scene status: %d"), sendSceneNumber);
-        goSceneStatus.value(sendSceneNumber);
+        go_Scene_Scene_status.value(sendSceneNumber);
         sendSceneNumber = 0xFF;
     }
 }

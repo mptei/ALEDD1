@@ -197,7 +197,7 @@ this function overrides selected pixels with specific color
 attention: if message color matches current stripe color, it's not possible to identify message state
 */
 
-void setMessageLeds(word firstLed, word lastLed, byte newValue, color_t newColor){
+void setMessageLeds(word firstLed, word ledCnt, byte newValue, color_t newColor){
 /*
   we can display up to 2 messages on a single strip
   each message has it own stripe range
@@ -223,8 +223,8 @@ Message 2 range: 14 - 0 => 7 LEDs, not possible in direct way. Please set LED 0 
 */
     color_t corrected = colorCorrection(newColor);
     if(newValue){ //if 0, do nothing, we've allready wiped with animation or static color
-        if(lastLed >= firstLed){
-            word amount = (lastLed - firstLed + 1) * newValue / 255; //round up //floor()
+        if(ledCnt >= firstLed){
+            word amount = (ledCnt - firstLed + 1) * newValue / 255; //round up //floor()
             for(word led = firstLed; led < firstLed + amount; led++){
                 if(led < numberLeds) {
                     neopixels->setPixelColor(led, corrected.c.r, corrected.c.g, corrected.c.b, corrected.c.w);
@@ -233,7 +233,7 @@ Message 2 range: 14 - 0 => 7 LEDs, not possible in direct way. Please set LED 0 
                 }
             }
         }else{//firstLed > lastLed
-            word amount = ceil((firstLed - lastLed + 1) * newValue / 255); //round up //floor()
+            word amount = ceil((firstLed - ledCnt + 1) * newValue / 255); //round up //floor()
             for(word led = firstLed; led > firstLed - amount; led--){
                 if(led < numberLeds) {
                     neopixels->setPixelColor(led, corrected.c.r, corrected.c.g, corrected.c.b, corrected.c.w);
@@ -251,7 +251,7 @@ void showMessage(){
         //just overlay with messages, animation will do "wipe"
         if(RAINBOW <= currentTask && currentTask <= WHIREMIDDLEOFF){
             for (byte mc = 0; mc < MESSAGES; mc++) {
-                setMessageLeds(msg[mc].ledFirst, msg[mc].ledLast, msg[mc].newValue, msg[mc].ledColor);
+                setMessageLeds(msg[mc].ledFirst, msg[mc].ledCnt, msg[mc].newValue, msg[mc].ledColor);
                 msg[mc].lastValue = msg[mc].newValue;
             }
             pixelsShow = true; //show result 
@@ -269,7 +269,7 @@ void showMessage(){
             }            
             //and show messages on top of static color
             for (byte mc = 0; mc < MESSAGES; mc++) {
-                setMessageLeds(msg[mc].ledFirst, msg[mc].ledLast, msg[mc].newValue, msg[mc].ledColor);
+                setMessageLeds(msg[mc].ledFirst, msg[mc].ledCnt, msg[mc].newValue, msg[mc].ledColor);
                 if(statusM & (1<<mc)) {
                     statusM &= ~(1<<mc); //set message WAIT state
                     msg[mc].lastValue = msg[mc].newValue;

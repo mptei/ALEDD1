@@ -84,7 +84,7 @@ void colorChannelCallback(GroupObject &go)
     rgbwChangedMillis = millis();
     changeTask(TASK_RGBW);
 
-    byte idx = go.asap() - goRedVal.asap();  // 0 -> R .. 2 -> B, 3 -> W
+    byte idx = go.asap() - go_Red_Value.asap();  // 0 -> R .. 2 -> B, 3 -> W
     if (idx < 3)
     {
         idx = 2 - idx; // 2 -> R, 1 -> G, -> 0 -> B
@@ -92,6 +92,19 @@ void colorChannelCallback(GroupObject &go)
     uint32_t mask = 0xff << (idx*8);
     newRGBW.rgbw = (newRGBW.rgbw & ~mask) | (byte)go.value() << (idx*8);
     dbg_print(F("colorChannelCallback: channel %d set to 0x%02x"), idx, (byte)go.value());
+}
+
+void rgbCallback(GroupObject &go) // RGB
+{
+    dbg_print(F("rgbCallback"));
+    lastTask = currentTask;
+    needPower();
+    uint32_t newRGB = (uint32_t)go.value();
+    acceptNewRGBW = (newRGB != (valuesRGBW.rgbw & 0xffffff));
+    valuesRGBW.rgbw = newRGB | (valuesRGBW.rgbw & 0xff000000); // keep white channel
+    dbg_print(F("valuesRGB: 0x%08x \n"),valuesRGBW.rgbw & 0xffffff);
+    currentTask = TASK_RGB;
+    sendSceneNumber = TASK_RGB;
 }
 
 static bool applyRGBW(color_t &in, GroupObject &go)
