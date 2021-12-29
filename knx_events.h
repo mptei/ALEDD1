@@ -40,9 +40,7 @@ void dimmRelCallback(GroupObject &go)
 {
     dbg_print(F("dimmRelCallback"));
     needPower();
-    byte newValue = *go.valueRef();
-    taskDimUpDownStop(newValue);
-    dbg_print(F("taskDimUpDownStop: %d"), newValue);
+    taskDimUpDownStop(go.value(), go.value(Dpt(3, 7, 1)));
 }
       
 void dimmAbsCallback(GroupObject &go)
@@ -96,14 +94,25 @@ void colorChannelCallback(GroupObject &go)
     dbg_print(F("colorChannelCallback: channel %d set to 0x%02x"), idx, (byte)go.value());
 }
 
+static bool applyRGBW(color_t &in, GroupObject &go)
+{
+    uint64_t newValue = (uint64_t)go.value();
+    uint32_t mask = newValue >> 32;
+    dbg_print(F("applyRGBW value: 0x%08x, mask: 0x%08x\n"),(uint32_t)newValue, (uint32_t)(newValue >> 32));
+    color_t out;
+    out.rgbw = in.rgbw & ~mask;
+    out.rgbw |= newValue & mask;
+    bool changed = in.rgbw != out.rgbw;
+    in = out;
+    return changed;
+}
+
 void rgbwCallback(GroupObject &go) // RGBW 251.600
 {
     dbg_print(F("rgbwCallback"));
     lastTask = currentTask;
     needPower();
-    acceptNewRGBW = true;
-    uint32_t newValue = (uint32_t)go.value();
-    valuesRGBW.rgbw = newValue;
+    acceptNewRGBW = applyRGBW(valuesRGBW, go);
     dbg_print(F("valuesRGBW R: %d, G: %d, B: %d, W: %d \n"),valuesRGBW.c.r,valuesRGBW.c.g,valuesRGBW.c.b,valuesRGBW.c.w);
     currentTask = TASK_RGBW;
     sendSceneNumber = TASK_RGBW;
@@ -130,11 +139,7 @@ void msgCallback(GroupObject &go)
             break;
         case 3: // RGBW
         {
-            uint64_t newRGBW = (uint64_t)go.value();
-            uint32_t mask = newRGBW >> 32;
-            msg[msgNum].ledColor.rgbw &= ~mask;
-            msg[msgNum].ledColor.rgbw |= newRGBW & mask;
-            msg[msgNum].newValue = newRGBW ? 255 : 0;
+            msg[msgNum].newValue = applyRGBW(msg[msgNum].ledColor, go) ? 255 : 0;
         }
             break;
     }

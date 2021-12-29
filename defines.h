@@ -1,10 +1,3 @@
-//DPT3.007 stuff
-#define DPT3_007_MASK_DIRECTION 0b1000
-#define DPT3_007_INCREASE       0b1000
-#define DPT3_007_DECREASE       0b0000
-#define DPT3_007_MASK_STEP      0b0111
-#define DPT3_007_STOP           0b0000
-
 //Scene 1 .. 9
 #define ALL_OFF 0x00  //1
 #define WHITE 0x01    //2

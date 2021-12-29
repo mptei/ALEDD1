@@ -109,17 +109,13 @@ void taskSoftOnOff(byte value){
         dimmer.taskSoftOff();
 }
 
-void taskDimUpDownStop(byte value){
-    //use only 3 last bits
-    byte step = value & DPT3_007_MASK_STEP;
-    //true = increase, false = decrease
-    bool direction = value & DPT3_007_MASK_DIRECTION;
-    dbg_print(F("value: %d, step: %d, direction: %d"), value, step, direction);
-    //if step == B?????000 then stop
-    if(step == DPT3_007_STOP)
+void taskDimUpDownStop(bool up, byte step){
+    dbg_print(F("step: %d, direction: %d"), step, up);
+    //if step == 0 then stop
+    if(step == 0)
         dimmer.taskStop();
     else
-        if(direction)
+        if(up)
             dimmer.taskDimUp();
         else
             dimmer.taskDimDown();
