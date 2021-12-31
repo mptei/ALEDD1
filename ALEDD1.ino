@@ -34,6 +34,7 @@ typedef union {
         uint8_t r;
         uint8_t w;
     } c;
+    uint8_t a[4];
 } color_t;
 #define COLOR(R,G,B,W) {.c={(B),(G),(R),(W)}}
 #define COLORMASK 0x00FFFFFFUL
@@ -95,15 +96,20 @@ byte valueMax;
 color_t userColors[USERCOLORS];
 color_t newRGBW;
 color_t valuesRGBW;
+
+#define STATE_CHANGE_DELAY 100
+unsigned long rgbwStateMillis;
+color_t valuesRGBWState;
+
 byte newHSV[3] = {0,0,0};
 byte valuesHSV[3] = {0,0,0};
-bool rgbwChanged = false;
-bool hsvChanged = false;
-bool acceptNewRGBW = false;
-bool acceptNewHSV = false;
-unsigned long rgbwChangedMillis = 0;
-unsigned long hsvChangedMillis = 0;
-word rgbwhsvChangedDelay = 50;
+bool rgbwSingleChannelChanged;
+bool hsvSingleValueChanged;
+bool acceptNewRGBW;
+bool acceptNewHSV;
+unsigned long rgbwChangedMillis;
+unsigned long hsvChangedMillis;
+#define SINGLE_CHANNEL_CHANGE_DELAY 50
 
 //XML group messages:
 //Message 1
@@ -403,21 +409,22 @@ void loop()
         taskFunction();
     }
     powerSupply();
-    if (rgbwChanged)
+    if (rgbwSingleChannelChanged)
     {
-        if (millis() - rgbwChangedMillis > rgbwhsvChangedDelay && !acceptNewRGBW)
+        if (millis() - rgbwChangedMillis > SINGLE_CHANNEL_CHANGE_DELAY && !acceptNewRGBW)
         {
             dbg_print(F("apply new rgb(w) values"));
-            dbg_print(F("newRGBW %ld"), newRGBW.rgbw);
-            dbg_print(F("valuesRGBW %ld \n"), valuesRGBW.rgbw);
+            dbg_print(F("newRGBW 0x%08lx"), newRGBW.rgbw);
+            dbg_print(F("valuesRGBW 0x%08lx"), valuesRGBW.rgbw);
 
             valuesRGBW.rgbw = newRGBW.rgbw;
             acceptNewRGBW = true;
+            rgbwSingleChannelChanged = false;
         }
     }
-    if (hsvChanged)
+    if (hsvSingleValueChanged)
     {
-        if (millis() - hsvChangedMillis > rgbwhsvChangedDelay && !acceptNewHSV)
+        if (millis() - hsvChangedMillis > SINGLE_CHANNEL_CHANGE_DELAY && !acceptNewHSV)
         {
             dbg_print(F("apply new hsv values"));
 
@@ -425,6 +432,7 @@ void loop()
             valuesHSV[1] = newHSV[1];
             valuesHSV[2] = newHSV[2];
             acceptNewHSV = true;
+            hsvSingleValueChanged = false;
         }
     }
     if (dimmer.updateAvailable())
@@ -450,5 +458,12 @@ void loop()
         dbg_print(F("Send scene status: %d"), sendSceneNumber);
         go_Scene_Scene_status.value(sendSceneNumber);
         sendSceneNumber = 0xFF;
+    }
+    if (millis() - rgbwStateMillis > STATE_CHANGE_DELAY && valuesRGBW.rgbw != valuesRGBWState.rgbw)
+    {
+        rgbwStateMillis = millis();
+        valuesRGBWState.rgbw = valuesRGBW.rgbw;
+        go_RGBW_RGBW_Status.valueNoSend((byte)15, Dpt(251, 600, 1));
+        go_RGBW_RGBW_Status.value(valuesRGBW.rgbw, Dpt(251, 600, 0));
     }
 }

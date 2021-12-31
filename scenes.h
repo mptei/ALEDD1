@@ -76,22 +76,10 @@ void taskFunction(){
             whitemiddleoff();
             break;
 
-        case TASK_RGB:
-            if(acceptNewRGBW){
-                setAll(valuesRGBW);
-                acceptNewRGBW = false;
-                rgbwChanged = false;
-                dbg_print(F("TASK_RGB done"));
-            }
-            break;
         case TASK_RGBW:
             if(acceptNewRGBW){
-                //first 12 bits are not defined, 4 bits ignored
-                dbg_print(F("valuesRGBW R: %d, G: %d, B: %d, W: %d"), valuesRGBW.c.r, valuesRGBW.c.g, valuesRGBW.c.b, valuesRGBW.c.w);
                 setAll(valuesRGBW);
                 acceptNewRGBW = false;
-                rgbwChanged = false;
-                dbg_print(F("TASK_RGBW done"));
             }
             break;
         case TASK_HSV:
@@ -100,8 +88,6 @@ void taskFunction(){
                 acceptNewHSV = false;
                 dbg_print(F("TASK_HSV done"));
             }
-            break;
-        case TASK_DIMMER:
             break;
            
         case TASK_IDLE:

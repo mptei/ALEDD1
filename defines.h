@@ -30,11 +30,9 @@
 #define WHIREMIDDLEON 0x32        //51
 #define WHIREMIDDLEOFF 0x33       //52
 
-//Scene 61 .. 64
-#define TASK_RGB 0x3C
-#define TASK_RGBW 0x3D
-#define TASK_HSV 0x3E
-#define TASK_DIMMER 0x3F
+//Scene 61 .. 62
+#define TASK_RGBW 0x3C
+#define TASK_HSV 0x3D
 
 #define TASK_IDLE 0xFE
 

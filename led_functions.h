@@ -151,13 +151,15 @@ color_t colorCorrection(color_t color)
 
 void setAll(color_t color){
     currentTask = TASK_IDLE; //TASK_IDLE
-    //staticColorReady = true;
     color_t corrected = colorCorrection(color);
     for(int i = 0; i < numberLeds; i++){
         neopixels->setPixelColor(i, corrected.rgbw);
     }
-    //save color, we need it for messages
+    //save color, for messages
     lastStaticColor = corrected;
+    // Set static color value
+    valuesRGBW = color;
+    newRGBW = color;
     pixelsShow = true;
 }
 
@@ -258,7 +260,7 @@ void showMessage(){
         }
         //turn Message LEDs on/off if it's not an animation (static color)
         if((ALL_OFF  <= lastTaskBeforeMessage && lastTaskBeforeMessage <= USER_COLOR_5) || 
-           (TASK_RGB <= lastTaskBeforeMessage && lastTaskBeforeMessage <= TASK_DIMMER )){
+           (TASK_RGBW <= lastTaskBeforeMessage && lastTaskBeforeMessage <= TASK_HSV )){
             //"wipe" messages if we will show any less message LEDs as before
             for (byte mc = 0; mc < MESSAGES; mc++) {
                 if (msg[mc].lastValue > msg[mc].newValue) {

@@ -66,7 +66,6 @@ void sceneCallback(GroupObject &go)
     dbg_print(F("newTask: 0x%02X"), newTask);
     if (newTask != 0xFF) {
         changeTask(newTask);
-        acceptNewRGBW = true;
         initialized = false;
     }
     if (isDimmerOff()) {
@@ -76,37 +75,39 @@ void sceneCallback(GroupObject &go)
 }
 
 
+// Called on any single channel RGBW change
+// The change is delayed to perform the change in one go
 void colorChannelCallback(GroupObject &go)
 {
     needPower();
-
-    rgbwChanged = true;
-    rgbwChangedMillis = millis();
-    changeTask(TASK_RGBW);
 
     byte idx = go.asap() - go_Red_Value.asap();  // 0 -> R .. 2 -> B, 3 -> W
     if (idx < 3)
     {
         idx = 2 - idx; // 2 -> R, 1 -> G, -> 0 -> B
     }
-    uint32_t mask = 0xff << (idx*8);
-    newRGBW.rgbw = (newRGBW.rgbw & ~mask) | (byte)go.value() << (idx*8);
+    if (newRGBW.a[idx] != (byte)go.value())
+    {
+        newRGBW.a[idx] = (byte)go.value();
+        rgbwSingleChannelChanged = true;
+        rgbwChangedMillis = millis();
+        changeTask(TASK_RGBW);
+    }
     dbg_print(F("colorChannelCallback: channel %d set to 0x%02x"), idx, (byte)go.value());
 }
 
 void rgbCallback(GroupObject &go) // RGB
 {
     dbg_print(F("rgbCallback"));
-    lastTask = currentTask;
+    changeTask(TASK_RGBW);
     needPower();
     uint32_t newRGB = (uint32_t)go.value();
-    acceptNewRGBW = (newRGB != (valuesRGBW.rgbw & 0xffffff));
+    acceptNewRGBW = (newRGB != (valuesRGBW.rgbw & 0x00ffffff));
     valuesRGBW.rgbw = newRGB | (valuesRGBW.rgbw & 0xff000000); // keep white channel
-    dbg_print(F("valuesRGB: 0x%08x \n"),valuesRGBW.rgbw & 0xffffff);
-    currentTask = TASK_RGB;
-    sendSceneNumber = TASK_RGB;
+    dbg_print(F("valuesRGB: 0x%08x \n"),valuesRGBW.rgbw);
 }
 
+// Handle the masking of the RGBW channels
 static bool applyRGBW(color_t &in, GroupObject &go)
 {
     uint64_t newValue = (uint64_t)go.value();
@@ -123,12 +124,10 @@ static bool applyRGBW(color_t &in, GroupObject &go)
 void rgbwCallback(GroupObject &go) // RGBW 251.600
 {
     dbg_print(F("rgbwCallback"));
-    lastTask = currentTask;
+    changeTask(TASK_RGBW);
     needPower();
     acceptNewRGBW = applyRGBW(valuesRGBW, go);
-    dbg_print(F("valuesRGBW R: %d, G: %d, B: %d, W: %d \n"),valuesRGBW.c.r,valuesRGBW.c.g,valuesRGBW.c.b,valuesRGBW.c.w);
-    currentTask = TASK_RGBW;
-    sendSceneNumber = TASK_RGBW;
+    dbg_print(F("valuesRGBW: 0x08%x\n"),valuesRGBW.rgbw);
 }
 
 void msgCallback(GroupObject &go)
