@@ -71,20 +71,22 @@ bool ledTestMode = false;
 bool pixelsShow = false;
 
 //XML group: LED
-uint8_t ledType = 0xC6; // ~ NEO_RGBW, see Adafruit_NeoPixel.h for more infos
-bool rgbw = true;
-color_t mixedWhite = COLOR(255,240,224,0);
-uint16_t numberLeds = 600; //amount of leds on a stripe
-uint8_t firstOnValue = 1;
-uint8_t maxR = 255; // to match the same brightness on different colors
-uint8_t maxG = 255; // reduce brightnes of some colors
-uint8_t maxB = 255; // also usefull to make not "to blueisch" white
-uint8_t maxW = 255; // recomended values: R:255,G:176,B:240,W:255
+uint8_t ledType;
+bool rgbw;
+bool whiteOnly;
+color_t mixedWhite;
+uint16_t numberLeds; //amount of leds on a stripe
+uint8_t firstOnValue;
+uint8_t maxR; // to match the same brightness on different colors
+uint8_t maxG; // reduce brightnes of some colors
+uint8_t maxB; // also usefull to make not "to blueisch" white
+uint8_t maxW; // recomended values: R:255,G:176,B:240,W:255
 //uint8_t whiteType = 0; // if RGBW strip used, 0=warm, 1=neutral, 2=cold
-float gammaCorrection = 1.0;
+float gammaCorrection;
+
 //XML group: Dimmer
-byte softOnOffTimeList[] = {0, 3, 5, 7, 10, 15, 20}; //hundreds of milliseconds: 0,300,500...
-byte relDimTimeList[] = {2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 20}; //seconds
+const byte softOnOffTimeList[] = {0, 3, 5, 7, 10, 15, 20}; //hundreds of milliseconds: 0,300,500...
+const byte relDimTimeList[] = {2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 20}; //seconds
 byte valueMinDay;
 byte valueMaxDay;
 byte valueMinNight;
@@ -92,6 +94,10 @@ byte valueMaxNight;
 // The currently used values
 byte valueMin;
 byte valueMax;
+byte dimmScene;
+bool dimmLog;
+byte lastDimmValue;
+
 //XML group: User color 1-5
 color_t userColors[USERCOLORS];
 color_t newRGBW;
@@ -197,6 +203,9 @@ void setup()
         go_Dimmer_Switch_status.dataPointType(DPT_Switch);
         go_Dimmer_Dimm_status.dataPointType(DPT_Percent_U8);
 
+        go_DimmScene_Dimm_Scene.dataPointType(DPT_SceneNumber);
+        go_DimmScene_Dimm_Scene.callback(dimmSceneCallback);
+
         go_Scene_Value.dataPointType(DPT_SceneNumber);
         go_Scene_Value.callback(sceneCallback);
 
@@ -234,8 +243,27 @@ void setup()
 
         //XML group: LED
         ledType = PARMVAL_ledType();
-        if(ledType == NEO_RGB || ledType == NEO_RBG || ledType == NEO_GRB || 
-           ledType == NEO_GBR || ledType == NEO_BRG || ledType == NEO_BGR) rgbw = false;
+        if (ledType == 0)
+        {
+            rgbw = false;
+            whiteOnly = true;
+            ledType = NEO_GRB;
+        }
+        else
+        {
+            const byte RGBTypes[] = {NEO_RGB, NEO_RBG, NEO_GRB, NEO_GBR, NEO_BRG, NEO_BGR};
+            rgbw = true;
+            for (byte idx = 0; idx < sizeof(RGBTypes)/sizeof(*RGBTypes); idx ++)
+            {
+                if (ledType == RGBTypes[idx])
+                {
+                    rgbw = false;
+                    break;
+                }
+            }
+        }
+        
+        
         numberLeds = PARMVAL_numbersLedsStrip();
         firstOnValue = PARMVAL_firstOnValue();
         maxR = PARMVAL_rCorrection();
@@ -249,7 +277,6 @@ void setup()
         //XML group: Dimmer
         dimmer.setDurationAbsolute(softOnOffTimeList[PARMVAL_timeSoft()] * 100);
         dimmer.setDurationRelative(relDimTimeList[PARMVAL_timeRel()] * 1000);
-        //dimmer.setValueFunction(&setLeds);
         dimmer.setValueFunction(&setBrightness);
         valueMinDay = PARMVAL_dayMin();
         valueMaxDay = PARMVAL_dayMax();
@@ -258,6 +285,8 @@ void setup()
         onMeansDay = PARMVAL_dayIsOn();
         //set day values until we know if it is day or night
         setDayNightValues(false);
+        dimmScene = PARMVAL_dimmScene();
+
         //XML group: User colors
 #define UCSIZE (4 * 4)
         for (byte uc = 0; uc < USERCOLORS; uc++) {
@@ -441,11 +470,17 @@ void loop()
 
         byte dimmValue = dimmer.getCurrentValue();
 
-        go_Dimmer_Switch_status.value(dimmValue != 0);
-        dbg_print(F("Send dimmer status: %d"), dimmValue != 0);
-
-        go_Dimmer_Dimm_status.value(dimmValue);
-        dbg_print(F("Send dimmer value status: %d"), dimmValue);
+        if ((lastDimmValue != 0) != (dimmValue != 0))
+        {
+            go_Dimmer_Switch_status.value(dimmValue != 0);
+            dbg_print(F("Send dimmer status: %d"), dimmValue != 0);
+        }
+        if (lastDimmValue != dimmValue)
+        {
+            lastDimmValue = dimmValue;
+            go_Dimmer_Dimm_status.value(dimmValue);
+            dbg_print(F("Send dimmer value status: %d"), dimmValue);
+        }
         
         if (!dimmValue) {
             // Switch LEDs off; a message might keep them on

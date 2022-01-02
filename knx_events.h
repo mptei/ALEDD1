@@ -32,7 +32,7 @@ void dimmSwitchCallback(GroupObject &go)
     // Switching on still turns into white
     if (tmpBool) {
         needPower();
-        changeTask(WHITE);
+        changeTask(dimmScene);
     }
 }
 
@@ -45,10 +45,10 @@ void dimmRelCallback(GroupObject &go)
       
 void dimmAbsCallback(GroupObject &go)
 {
-    dbg_print(F("dimmAbsCallback"));
     byte newValue = (byte)go.value();
+    dbg_print(F("dimmAbsCallback: %d"), newValue);
     if (isDimmerOff() || lastTask == ALL_OFF) {
-        changeTask(WHITE);
+        changeTask(dimmScene);
     }
     taskNewValue(newValue);
     if (newValue)
@@ -57,7 +57,13 @@ void dimmAbsCallback(GroupObject &go)
     }
     dbg_print(F("taskNewValue: %d"), newValue);
 }
-      
+
+void dimmSceneCallback(GroupObject &go)
+{
+    dimmScene = go.value();
+    dbg_print(F("dimmSceneCallback: %d"), dimmScene);
+}
+
 void sceneCallback(GroupObject &go)
 {
     dbg_print(F("sceneCallback"));

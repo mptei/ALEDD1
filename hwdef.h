@@ -14,7 +14,8 @@
 #define LED_STRIP_PIN 22  //LED shield
 #define POWER_SUPPLY_PIN 8 //active low
 #define POWER_SUPPLY_PIN_ACTIVE true |  // switched off
-#define PROG_LED_PIN LED_BUILTIN
+//#define PROG_LED_PIN LED_BUILTIN
+#define PROG_LED_PIN 8
 #define PROG_LED_PIN_ACTIVE HIGH
 #define PROG_BUTTON_PIN 2 
 #define PROG_BUTTON_INT FALLING 
