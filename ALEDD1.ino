@@ -26,6 +26,7 @@
 // Number of group objects per message
 #define MSGGOCNT 4
 
+// A type to access the fields of RGBW in a different way
 typedef union {
     uint32_t rgbw;
     struct {
@@ -36,6 +37,14 @@ typedef union {
     } c;
     uint8_t a[4];
 } color_t;
+bool operator!=(const color_t &a, const color_t &b)
+{
+    return a.rgbw != b.rgbw;
+}
+bool operator==(const color_t &a, const color_t &b)
+{
+    return !(a != b);
+}
 #define COLOR(R,G,B,W) {.c={(B),(G),(R),(W)}}
 #define COLORMASK 0x00FFFFFFUL
 
@@ -120,14 +129,15 @@ unsigned long hsvChangedMillis;
 //XML group messages:
 //Message 1
 byte statusM = 0;   // a bit for every message, false = wait and do nothing, true = show message1Value
-struct msg {
-    byte newValue; //0 = all LEDs off, 1-255 corresponds to percentage of leds (255 = all LEDs are on, 127 = only 50% of LEDs are on)
-    byte lastValue;
-    word ledFirst;
-    word ledCnt;
+typedef struct msg {
+    uint8_t newValue; //0 = all LEDs off, 1-255 corresponds to percentage of leds (255 = all LEDs are on, 127 = only 50% of LEDs are on)
+    uint8_t lastValue;
+    uint16_t ledFirst;
+    int16_t ledCnt;
     color_t ledColor;
     bool blink;
-} msg[MESSAGES];
+} msg_t;
+msg_t msg[MESSAGES];
 
 //XML group: Power supply control
 bool allLedsOff = true;
@@ -301,7 +311,7 @@ void setup()
 #define MSGSIZE (6 * 4 + 1)
         for (byte mc = 0; mc < MESSAGES; mc++) {
             msg[mc].ledFirst     = knx.paramInt(PARM_m1first + MSGSIZE * mc) - 1; //Code: count from 0.., Suite: Count from 1..
-            msg[mc].ledCnt       = knx.paramInt(PARM_m1cnt + MSGSIZE * mc) - 1;
+            msg[mc].ledCnt       = (int32_t)knx.paramInt(PARM_m1cnt + MSGSIZE * mc);
             msg[mc].ledColor.c.r = knx.paramInt(PARM_m1r + MSGSIZE * mc);
             msg[mc].ledColor.c.g = knx.paramInt(PARM_m1g + MSGSIZE * mc);
             msg[mc].ledColor.c.b = knx.paramInt(PARM_m1b + MSGSIZE * mc);
@@ -324,8 +334,8 @@ void setup()
 
         setDimmingCurves();
         initStrip(numberLeds, ledType);
-        // White by default
-        setAll(white);
+        // Black by default
+        setAll(black);
         // Off by default
         neopixels->setBrightness(0);
         pixelsShow = true;

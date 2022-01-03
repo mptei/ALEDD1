@@ -199,7 +199,7 @@ this function overrides selected pixels with specific color
 attention: if message color matches current stripe color, it's not possible to identify message state
 */
 
-void setMessageLeds(word firstLed, word ledCnt, byte newValue, color_t newColor){
+void setMessageLeds(msg_t &msg){
 /*
   we can display up to 2 messages on a single strip
   each message has it own stripe range
@@ -223,25 +223,21 @@ Message 2 range: 14 - 0 => 7 LEDs, not possible in direct way. Please set LED 0 
                  if LED 0 will be set as 0, than the range will be 15 LEDs: 14,13,12...2,1,0
 
 */
-    color_t corrected = colorCorrection(newColor);
-    if(newValue){ //if 0, do nothing, we've allready wiped with animation or static color
-        if(ledCnt >= firstLed){
-            word amount = (ledCnt - firstLed + 1) * newValue / 255; //round up //floor()
-            for(word led = firstLed; led < firstLed + amount; led++){
-                if(led < numberLeds) {
-                    neopixels->setPixelColor(led, corrected.c.r, corrected.c.g, corrected.c.b, corrected.c.w);
-                }else{
-                    neopixels->setPixelColor(led - numberLeds, corrected.c.r, corrected.c.g, corrected.c.b, corrected.c.w); //see examples
-                }
+    color_t corrected = colorCorrection(msg.ledColor);
+    if(msg.newValue){ //if 0, do nothing, we've allready wiped with animation or static color
+        if(msg.ledCnt > 0){
+            uint16_t amount = (msg.ledCnt * msg.newValue + 254) / 255;
+            int16_t led = msg.ledFirst;
+            dbg_print(F("LED: %d, count: %d"), led, amount);
+            while (amount-- > 0) {
+                neopixels->setPixelColor(led++ % numberLeds, corrected.rgbw);
             }
-        }else{//firstLed > lastLed
-            word amount = ceil((firstLed - ledCnt + 1) * newValue / 255); //round up //floor()
-            for(word led = firstLed; led > firstLed - amount; led--){
-                if(led < numberLeds) {
-                    neopixels->setPixelColor(led, corrected.c.r, corrected.c.g, corrected.c.b, corrected.c.w);
-                }else{
-                    neopixels->setPixelColor(led - numberLeds, corrected.c.r, corrected.c.g, corrected.c.b, corrected.c.w); //see examples
-                }
+        }else if (msg.ledCnt < 0) {
+            uint16_t amount = (msg.ledCnt * -1 * msg.newValue + 254) / 255;
+            int16_t led = msg.ledFirst;
+            dbg_print(F("LED: %d, count: %d"), led, amount);
+            while (amount-- > 0) {
+                neopixels->setPixelColor((led-- + numberLeds) % numberLeds, corrected.rgbw);
             }
         }
     }
@@ -253,7 +249,7 @@ void showMessage(){
         //just overlay with messages, animation will do "wipe"
         if(RAINBOW <= currentTask && currentTask <= WHIREMIDDLEOFF){
             for (byte mc = 0; mc < MESSAGES; mc++) {
-                setMessageLeds(msg[mc].ledFirst, msg[mc].ledCnt, msg[mc].newValue, msg[mc].ledColor);
+                setMessageLeds(msg[mc]);
                 msg[mc].lastValue = msg[mc].newValue;
             }
             pixelsShow = true; //show result 
@@ -265,13 +261,13 @@ void showMessage(){
             for (byte mc = 0; mc < MESSAGES; mc++) {
                 if (msg[mc].lastValue > msg[mc].newValue) {
                     setAll(lastStaticColor);
-                    dbg_print(F("Message %d: set last static color: WRGB: %08xl, statusM: %d"), mc, lastStaticColor.rgbw, statusM & (1<<mc));
+                    dbg_print(F("Message %d: set last static color: WRGB: %08lx, statusM: %d"), mc+1, lastStaticColor.rgbw, statusM & (1<<mc));
                     break;
                 }
             }            
             //and show messages on top of static color
             for (byte mc = 0; mc < MESSAGES; mc++) {
-                setMessageLeds(msg[mc].ledFirst, msg[mc].ledCnt, msg[mc].newValue, msg[mc].ledColor);
+                setMessageLeds(msg[mc]);
                 if(statusM & (1<<mc)) {
                     statusM &= ~(1<<mc); //set message WAIT state
                     msg[mc].lastValue = msg[mc].newValue;
