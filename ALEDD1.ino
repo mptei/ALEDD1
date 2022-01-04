@@ -68,10 +68,12 @@ bool staticColorReady = false;
 byte sendSceneNumber = 0xFF;
 unsigned long lastAnimMillis = 0;
 
-byte curveR[256];
-byte curveG[256];
-byte curveB[256];
-byte curveW[256];
+// How many dimming steps are possible
+#define DIMMSTEPCOUNT 256
+uint8_t curveR[DIMMSTEPCOUNT];
+uint8_t curveG[DIMMSTEPCOUNT];
+uint8_t curveB[DIMMSTEPCOUNT];
+uint8_t curveW[DIMMSTEPCOUNT];
 
 word longClickDurationBtn = 500;
 unsigned long clickMillis = 0;
