@@ -63,8 +63,6 @@ bool initialized = false;
 byte currentTask = TASK_IDLE; //0xFE - idle
 byte lastTask = TASK_IDLE;
 byte lastTaskBeforeMessage = 0; // all LEDs are off
-color_t lastStaticColor = black;
-bool staticColorReady = false;
 byte sendSceneNumber = 0xFF;
 unsigned long lastAnimMillis = 0;
 
@@ -73,7 +71,7 @@ unsigned long lastAnimMillis = 0;
 uint8_t curveR[DIMMSTEPCOUNT];
 uint8_t curveG[DIMMSTEPCOUNT];
 uint8_t curveB[DIMMSTEPCOUNT];
-uint8_t curveW[DIMMSTEPCOUNT];
+uint16_t curveW[DIMMSTEPCOUNT];
 
 word longClickDurationBtn = 500;
 unsigned long clickMillis = 0;
@@ -400,7 +398,7 @@ void powerSupply(){
     }
 
     if(powerSupplyControl){
-        if(!lastStaticColor.rgbw &&
+        if(!valuesRGBW.rgbw &&
            !msg[0].lastValue && !msg[1].lastValue && !msg[2].lastValue && !msg[3].lastValue && currentTask == TASK_IDLE){
             allLedsOff = true;
         }else{
