@@ -125,7 +125,7 @@ void taskNewValue(byte value){
 
 uint8_t mixAndClipValue(uint8_t w, uint8_t color)
 {
-    if (color + w > 255) return 255;
+    if (255 - color < w) return 255;
     return color + w;
 }
 
