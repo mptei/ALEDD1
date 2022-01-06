@@ -1,9 +1,32 @@
 // Changes the task to the given newTask
-void changeTask(byte newTask)
+void changeTask(uint8_t newTask)
 {
-    lastTask = currentTask;
+    bool brightnessRefresh = false;
+    if (newTask != TASK_IDLE) {
+        sendSceneNumber = newTask;
+        initialized = false;
+
+        // Check for animation/static transisiton
+        if (isAnimationTask(newTask)) {
+            if (!isAnimationTask(currentTask)) {
+                // static => animation
+                dbg_print(F("static => animation"));
+                brightnessRefresh = true;
+            }
+        } else {
+            if (isAnimationTask(currentTask)) {
+                // animation => static
+                dbg_print(F("animation => static"));
+                brightnessRefresh = true;
+            }
+        }
+    }
+    if (currentTask != TASK_IDLE) lastTask = currentTask;
     currentTask = newTask;
-    sendSceneNumber = newTask;
+    if (brightnessRefresh)
+    {
+        setBrightness(dimmer.getCurrentValue());
+    }
 }
 
 // Returns true if the dimmer state is off
@@ -67,12 +90,10 @@ void dimmSceneCallback(GroupObject &go)
 void sceneCallback(GroupObject &go)
 {
     dbg_print(F("sceneCallback"));
-    lastTask = currentTask;
     byte newTask = go.value();
     dbg_print(F("newTask: 0x%02X"), newTask);
     if (newTask != 0xFF) {
         changeTask(newTask);
-        initialized = false;
     }
     if (isDimmerOff()) {
         needPower();
@@ -111,8 +132,7 @@ void rgbCallback(GroupObject &go) // RGB
 {
     dbg_print(F("rgbCallback"));
     uint32_t newRGB = (uint32_t)go.value();
-    acceptNewRGBW = (newRGB != (valuesRGBW.rgbw & 0x00ffffff));
-    if (acceptNewRGBW)
+    if (newRGB != (valuesRGBW.rgbw & 0x00ffffff))
     {
         if (newRGB != 0 && !isDimmerOff())
         {
@@ -140,8 +160,7 @@ void rgbwCallback(GroupObject &go) // RGBW 251.600
 {
     dbg_print(F("rgbwCallback"));
     color_t newRGBW = applyRGBW(valuesRGBW, go);
-    acceptNewRGBW = (newRGBW.rgbw != valuesRGBW.rgbw);
-    if (acceptNewRGBW)
+    if (newRGBW.rgbw != valuesRGBW.rgbw)
     {
         if (newRGBW.rgbw != 0 && !isDimmerOff())
         {
@@ -162,13 +181,13 @@ void msgCallback(GroupObject &go)
     switch (msgFunc) {
         case 0:  // Switch
             dbg_print(F("msgCallback msg%d: switch"), msgNum+1);
-            msg[msgNum].newValue = (bool)go.value() ? 255 : 0;
-            powerOn = msg[msgNum].newValue != 0;
+            msg[msgNum].val = (bool)go.value() ? 255 : 0;
+            powerOn = msg[msgNum].val != 0;
             break;
         case 1: // Percentage
             dbg_print(F("msgCallback msg%d: percentage"), msgNum+1);
-            msg[msgNum].newValue = (byte)go.value();
-            powerOn = (msg[msgNum].newValue != 0);
+            msg[msgNum].val = (byte)go.value();
+            powerOn = (msg[msgNum].val != 0);
             break;
         case 2: // RGB
             {
@@ -176,7 +195,7 @@ void msgCallback(GroupObject &go)
                 uint32_t newRGB = (uint32_t)go.value();
                 if (newRGB != msg[msgNum].ledColor.rgbw)
                 {
-                    powerOn = (newRGB != 0 && msg[msgNum].lastValue != 0);
+                    powerOn = (newRGB != 0 && msg[msgNum].val != 0);
                     msg[msgNum].ledColor.rgbw = newRGB;
                 }
             }
@@ -187,13 +206,13 @@ void msgCallback(GroupObject &go)
                 color_t newRGBW = applyRGBW(msg[msgNum].ledColor, go);
                 if (newRGBW != msg[msgNum].ledColor)
                 {
-                    powerOn = (newRGBW.rgbw != 0 && msg[msgNum].lastValue != 0);
+                    powerOn = (newRGBW.rgbw != 0 && msg[msgNum].val != 0);
                     msg[msgNum].ledColor = newRGBW;
                 }
             }
             break;
     }
-    statusM |= (1<<msgNum);
+    pixelsShow = true;
     if (powerOn && isDimmerOff())
     {
         // Switch stripe on when a message is set

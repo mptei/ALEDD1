@@ -134,8 +134,7 @@ void chaser() {
     pixelbrush->paint(); //apply the paint of the first brush to the canvas (and update the brush)
     pixelbrush2->paint(); //apply the paint of the second brush to the canvas (and update the brush)
     pixelcanvas->transfer(); //transfer the canvas to the neopixels
-    showPixels();
-
+    pixelsShow = true;
 }
 void huefader() {
     static unsigned int lastposition = 0;
@@ -365,8 +364,7 @@ void whitemiddleon() {
         {
             if (brightness >= 255)
             {
-                currentTask = TASK_IDLE;
-                sendSceneNumber = WHITE;
+                changeTask(WHITE);
             }
         }
         if (brightness > WMSTEP)
@@ -419,8 +417,7 @@ void whitemiddleoff() {
         {
             if (!brightness)
             {
-                currentTask = TASK_IDLE;
-                sendSceneNumber = ALL_OFF;
+                changeTask(ALL_OFF);
             }
         }
         if (brightness > WMSTEP)

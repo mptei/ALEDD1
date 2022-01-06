@@ -49,7 +49,7 @@ bool operator==(const color_t &a, const color_t &b)
 #define COLORMASK 0x00FFFFFFUL
 
 const color_t black = COLOR(0,0,0,0);
-const color_t white = COLOR(0,0,0,255);
+const color_t white = COLOR(255,255,255,255);
 const color_t red = COLOR(255,0,0,0);
 const color_t yellow = COLOR(255,0,0,0);
 const color_t green = COLOR(0,255,0,0);
@@ -60,10 +60,9 @@ const color_t orange = COLOR(255,81,0,0);
 
 //global variables
 bool initialized = false;
-byte currentTask = TASK_IDLE; //0xFE - idle
-byte lastTask = TASK_IDLE;
-byte lastTaskBeforeMessage = 0; // all LEDs are off
-byte sendSceneNumber = 0xFF;
+uint8_t currentTask = TASK_IDLE; //0xFE - idle
+uint8_t lastTask = TASK_IDLE;
+uint8_t sendSceneNumber = 0xFF;
 unsigned long lastAnimMillis = 0;
 
 // How many dimming steps are possible
@@ -128,10 +127,8 @@ unsigned long hsvChangedMillis;
 
 //XML group messages:
 //Message 1
-byte statusM = 0;   // a bit for every message, false = wait and do nothing, true = show message1Value
 typedef struct msg {
-    uint8_t newValue; //0 = all LEDs off, 1-255 corresponds to percentage of leds (255 = all LEDs are on, 127 = only 50% of LEDs are on)
-    uint8_t lastValue;
+    uint8_t val; //0 = all LEDs off, 1-255 corresponds to percentage of leds (255 = all LEDs are on, 127 = only 50% of LEDs are on)
     uint16_t ledFirst;
     int16_t ledCnt;
     color_t ledColor;
@@ -166,6 +163,7 @@ DimmerControl dimmer;
 
 //make functions known
 void showPixels ();
+void changeTask(uint8_t newTask);
 
 #include "hsvrgb.h"
 #include "animations.h"
@@ -366,6 +364,16 @@ void setup()
 
 }
 
+bool anyMessageSet()
+{
+    for (uint8_t mc = 0; mc < MESSAGES; ++mc) {
+        if (msg[mc].val) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void powerSupply(){
 
     {
@@ -398,8 +406,7 @@ void powerSupply(){
     }
 
     if(powerSupplyControl){
-        if(!valuesRGBW.rgbw &&
-           !msg[0].lastValue && !msg[1].lastValue && !msg[2].lastValue && !msg[3].lastValue && currentTask == TASK_IDLE){
+        if(dimmer.getCurrentValue() == 0 || (!valuesRGBW.rgbw && !anyMessageSet()) ){
             allLedsOff = true;
         }else{
             allLedsOff = false;
@@ -494,8 +501,7 @@ void loop()
         
         if (!dimmValue) {
             // Switch LEDs off; a message might keep them on
-            currentTask = ALL_OFF;
-            sendSceneNumber = ALL_OFF; //all off
+            changeTask(ALL_OFF);
         }
     }
     if (sendSceneNumber < 64)

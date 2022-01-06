@@ -166,13 +166,12 @@ color_t colorCorrection(color_t color)
 }
 
 color_t setAllRaw(color_t color){
-    dbg_print(F("setAllRaw 0x%08lx"), color.rgbw);
     color_t corrected = colorCorrection(color);
     for(int i = 0; i < numberLeds; i++){
         neopixels->setPixelColor(i, corrected.rgbw);
     }
-    return corrected;
     pixelsShow = true;
+    return corrected;
 }
 
 void setAll(color_t color){
@@ -198,9 +197,13 @@ void setAllHsv(byte h, byte s, byte v){
     }
 }
 
+bool isAnimationTask(uint8_t task) {
+    return RAINBOW <= task && task <= WHIREMIDDLEOFF;
+}
+
 bool isAnimationRunning()
 {
-    return RAINBOW <= currentTask && currentTask <= WHIREMIDDLEOFF;
+    return isAnimationTask(currentTask);
 }
 
 /*neopixels->show() tranfers buffer data to physical LEDs
@@ -228,87 +231,38 @@ color_t dimmColor(color_t in, uint16_t dimmValue)
     return out;
 }
 
-/*
-this function overrides selected pixels with specific color
-attention: if message color matches current stripe color, it's not possible to identify message state
-*/
-
 void setMessageLeds(msg_t &msg, uint16_t dimmValue){
-/*
-  we can display up to 2 messages on a single strip
-  each message has it own stripe range
-  the range is defined in KONNEKTING Suite "from LED number x up to LED number y"
-  message 2 will override (or part of) message 1 if message 2 range overlaps message 1 range
-
-Examples:
-
-LED strip with 20 LEDs (0..19):
- 0   1   2   3   4
-19               5 
-18               6 
-17               7 
-16               8 
-15               9 
-14  13  12  11  10
-
-Message 1 range: 10 - 4 => 7 LEDs (25%: 10,9; 50%: 10,9,8,7; 75%: 10,9,8,7,6)
-Message 2 range: 14 - 0 => 7 LEDs, not possible in direct way. Please set LED 0 as LED 20, LED 1 as LED 21 and so on... (LED number from LED 0 + string length)
-                 (25%: 14,15; 50%: 14,15,16,17; 75%: 14,15,16,17,18; 100%: 14,15,16,17,18,19,0)
-                 if LED 0 will be set as 0, than the range will be 15 LEDs: 14,13,12...2,1,0
-
-*/
-    if(msg.newValue){ //if 0, do nothing, we've allready wiped with animation or static color
+    if(msg.val && msg.ledCnt) { //if 0, do nothing, we've allready wiped with animation or static color
         color_t corrected = colorCorrection(dimmColor(msg.ledColor, dimmValue));
-        if(msg.ledCnt > 0){
-            uint16_t amount = (msg.ledCnt * msg.newValue + 254) / 255;
-            int16_t led = msg.ledFirst;
-            dbg_print(F("LED: %d, count: %d"), led, amount);
-            while (amount-- > 0) {
-                neopixels->setPixelColor(led++ % numberLeds, corrected.rgbw);
-            }
-        }else if (msg.ledCnt < 0) {
-            uint16_t amount = (msg.ledCnt * -1 * msg.newValue + 254) / 255;
-            int16_t led = msg.ledFirst;
-            dbg_print(F("LED: %d, count: %d"), led, amount);
-            while (amount-- > 0) {
-                neopixels->setPixelColor((led-- + numberLeds) % numberLeds, corrected.rgbw);
-            }
+        // How many LEDs should go on; + 254 to have all val > 0 give an amount > 0
+        uint16_t amount = (abs(msg.ledCnt) * msg.val + 254) / 255;
+        int16_t led = msg.ledFirst;
+        if (msg.ledCnt < 0) {
+            led = (led + 1 + numberLeds - amount) % numberLeds;
+        }
+        while (amount-- > 0) {
+            neopixels->setPixelColor(led++ % numberLeds, corrected.rgbw);
         }
     }
-    msg.lastValue = msg.newValue;
 }
 
 void showMessage(uint16_t dimmValue){
-    //set color only if we are in NOT in WAIT state 
-    if(statusM){
-        //just overlay with messages, animation will do "wipe"
-        if(isAnimationRunning()){
-            for (byte mc = 0; mc < MESSAGES; mc++) {
-                setMessageLeds(msg[mc], dimmValue);
-            }
-        }
-        else
-        {
-            //turn Message LEDs on/off if it's not an animation (static color)
-            //"wipe" messages if we will show any less message LEDs as before
-            color_t color = dimmColor(valuesRGBW, dimmValue);
-            setAllRaw(color);
-            dbg_print(F("Message: set last static color: WRGB: %08lx -> %08lx, statusM: 0x%02x"), valuesRGBW.rgbw, color.rgbw, statusM);
+    if (!isAnimationRunning()) {
+        // repaint static color
+        color_t color = dimmColor(valuesRGBW, dimmValue);
+        setAllRaw(color);
+    } else {
+        // Animations using neopixel brightness => switch of dimming
+        dimmValue = 0;
+    }
 
-            //and show messages on top of static color
-            for (byte mc = 0; mc < MESSAGES; mc++) {
-                setMessageLeds(msg[mc], dimmValue);
-                if(statusM & (1<<mc)) {
-                    statusM &= ~(1<<mc); //set message WAIT state
-                }
-            }
-        }
-        pixelsShow = true; //show result 
+    // Overwrite messages
+    for (byte mc = 0; mc < MESSAGES; mc++) {
+        setMessageLeds(msg[mc], dimmValue);
     }
 }
 
 void setBrightness(uint8_t value){
-    dbg_print(F("setBrightness value 0x%02x"), value);
     uint8_t dimmValue = (valueMax - valueMin) * value / 255 + valueMin;
     if (0 == dimmValue) {
         neopixels->setBrightness(0);
@@ -317,7 +271,7 @@ void setBrightness(uint8_t value){
     {
         if (isAnimationRunning())
         {
-            // For animations use the global brightness
+            // For animations use the global neopixel brightness
             uint16_t pixelVal = curveW[dimmValue];
             if (whiteOnly)
             {
@@ -327,10 +281,10 @@ void setBrightness(uint8_t value){
         }
         else
         {
+            // For static set the neopixel brightness to full
             neopixels->setBrightness(255);
-            statusM = (0xFF >> (8-MESSAGES));
+            // and repaint the static color
             showMessage(dimmValue);
-            dbg_print(F("setBrightness static "));
         }
     }
     pixelsShow = true;
