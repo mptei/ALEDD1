@@ -69,9 +69,9 @@ void showProgrammedLeds(){
     
 
 //led-stripe initialisation
-void initStrip(word pixel, byte type){
+void initStrip(uint16_t pixelCount, uint8_t type){
     if(neopixels) delete neopixels;
-    neopixels = new Adafruit_NeoPixel_ZeroDMA(pixel, LED_STRIP_PIN, type);
+    neopixels = new Adafruit_NeoPixel_ZeroDMA(pixelCount, LED_STRIP_PIN, type);
     pixelcanvas = new NeoPixelPainterCanvas(neopixels);
     pixelcanvas2 = new NeoPixelPainterCanvas(neopixels);
     pixelbrush = new NeoPixelPainterBrush(pixelcanvas);

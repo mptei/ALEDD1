@@ -147,9 +147,18 @@ void rgbCallback(GroupObject &go) // RGB
 // Handle the masking of the RGBW channels
 static color_t applyRGBW(const color_t &in, GroupObject &go)
 {
-    uint64_t newValue = (uint64_t)go.value();
-    uint32_t mask = newValue >> 32;
-    dbg_print(F("applyRGBW value: 0x%08lx, mask: 0x%08lx\n"),(uint32_t)newValue, (uint32_t)(newValue >> 32));
+    uint32_t newValue = (uint32_t)go.value();
+    uint8_t mask_bits = (uint8_t)go.value(Dpt(251,600,1));
+    uint32_t mask = 
+          ((mask_bits & 0x08) ? 0xff000000 : 0x00000000)
+        + ((mask_bits & 0x04) ? 0x00ff0000 : 0x00000000)
+        + ((mask_bits & 0x02) ? 0x0000ff00 : 0x00000000)
+        + ((mask_bits & 0x01) ? 0x000000ff : 0x00000000);
+    // RGBW => WRGB
+    newValue = newValue << 24 | newValue >> 8;
+    mask = mask << 24 | mask >> 8;
+
+    dbg_print(F("applyRGBW value: 0x%08lx, mask: 0x%08lx\n"),newValue, mask);
     color_t out;
     out.rgbw = in.rgbw & ~mask;
     out.rgbw |= newValue & mask;
