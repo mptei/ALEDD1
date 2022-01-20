@@ -5,6 +5,7 @@
  * Define 
  * #define DBG_PRINT             <= for switching on/off
  * #define DBG_SERIAL SerialUSB  <= for serial to be used
+ * #define DBG_SUSPEND           <= to wait until serial is connected
  * 
  */
 #pragma once
@@ -16,7 +17,9 @@ void dbg_init()
 {
 #ifdef DBG_PRINT
     DBG_SERIAL.begin(115200);
+#ifdef DBG_SUSPEND
     while (!DBG_SERIAL);
+#endif
 #endif
 }
 void dbg_print(const __FlashStringHelper *format, ...)
