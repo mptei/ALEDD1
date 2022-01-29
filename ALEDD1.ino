@@ -515,6 +515,6 @@ void loop()
         rgbwStateMillis = millis();
         valuesRGBWState.rgbw = valuesRGBW.rgbw;
         go_RGBW_RGBW_Status.valueNoSend((byte)15, Dpt(251, 600, 1));
-        go_RGBW_RGBW_Status.value(valuesRGBW.rgbw, Dpt(251, 600, 0));
+        go_RGBW_RGBW_Status.value(valuesRGBW.rgbw << 8 | valuesRGBW.rgbw >> 24, Dpt(251, 600, 0));
     }
 }
