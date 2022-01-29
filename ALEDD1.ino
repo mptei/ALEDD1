@@ -4,6 +4,7 @@
 // Activate debugging output
 #define DBG_PRINT
 #define DBG_SERIAL SerialUSB
+//#define DBG_SUSPEND  // to wait until serial is connected
 #include "dbg_print.h"
 
 #include <knx.h>
@@ -157,7 +158,7 @@ NeoPixelPainterCanvas *pixelcanvas2;
 NeoPixelPainterBrush *pixelbrush;
 NeoPixelPainterBrush *pixelbrush2;
 NeoPixelPainterBrush *pixelbrush3;
-NeoPixelPainterBrush *pixelbrush4on2; //brush 4 on cancas 2
+NeoPixelPainterBrush *pixelbrush4on2; //brush 4 on canvas 2
 HSV brushcolor;
 DimmerControl dimmer;
 
@@ -166,8 +167,8 @@ void showPixels ();
 void changeTask(uint8_t newTask);
 
 #include "hsvrgb.h"
-#include "animations.h"
 #include "led_functions.h"
+#include "animations.h"
 #include "scenes.h"
 #include "knx_events.h"
 
