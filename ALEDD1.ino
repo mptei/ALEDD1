@@ -362,6 +362,15 @@ void setup()
     {
         knx.progMode(true);
     }
+    else
+    {
+        if (PARMVAL_statusOnStart())
+        {
+            go_Dimmer_Switch_status.value(false);
+            go_Dimmer_Dimm_status.value((uint8_t)0);
+            go_Scene_Scene_status.value((uint8_t)0);
+        }
+    }
 
 }
 
