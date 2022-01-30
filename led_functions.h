@@ -262,8 +262,13 @@ void showMessage(uint16_t dimmValue){
     }
 }
 
+uint8_t scaleDimmerForStatic(uint8_t inValue)
+{
+    return (valueMax - valueMin) * inValue / 255 + valueMin;
+}
+
 void setBrightness(uint8_t value){
-    uint8_t dimmValue = (valueMax - valueMin) * value / 255 + valueMin;
+    uint8_t dimmValue = scaleDimmerForStatic(value);
     if (0 == dimmValue) {
         neopixels->setBrightness(0);
     }
@@ -283,8 +288,7 @@ void setBrightness(uint8_t value){
         {
             // For static set the neopixel brightness to full
             neopixels->setBrightness(255);
-            // and repaint the static color
-            showMessage(dimmValue);
+            // repainting is done later because pixelsShow is true
         }
     }
     pixelsShow = true;

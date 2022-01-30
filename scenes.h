@@ -67,7 +67,7 @@ void taskFunction(){
         }
     }
     if(pixelsShow){
-        showMessage(dimmer.getCurrentValue());
+        showMessage(scaleDimmerForStatic(dimmer.getCurrentValue()));
         showPixels();
     }
 }

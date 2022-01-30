@@ -329,8 +329,8 @@ static uint32_t wmBrightness;
 static unsigned long wmLastIncrease;
 static unsigned long wmIncreaseTime;
 #define INCREASE_FAC 1200
-#define WM_FADE_SPEED 1
-#define WM_BRUSH_SPEED(NUMBERLEDS) (3 * (NUMBERLEDS) / 25)
+#define WM_FADE_SPEED 5
+#define WM_BRUSH_SPEED(NUMBERLEDS) (3 * NUMBERLEDS / 5)
 void whitemiddleon() {
     if (initialized == false) {
         initialized = true;
