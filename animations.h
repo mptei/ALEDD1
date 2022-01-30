@@ -324,22 +324,74 @@ void twobrushcolormixing() {
 
 }
 
-#define WMSHIFT 4
-#define WMSTEP 16
+#define WMSTEP 4
 static uint32_t wmBrightness;
+static unsigned long wmLastIncrease;
+static unsigned long wmIncreaseTime;
+#define INCREASE_FAC 1200
+#define WM_FADE_SPEED 1
+#define WM_BRUSH_SPEED(NUMBERLEDS) (3 * (NUMBERLEDS) / 25)
 void whitemiddleon() {
     if (initialized == false) {
         initialized = true;
+        dbg_print(F("whitemiddleon init"));
+        brushcolor.h = 255;
+        brushcolor.s = 125;
+        brushcolor.v = 32;
+        pixelbrush->setColor(brushcolor);
+        pixelbrush->setSpeed(WM_BRUSH_SPEED(numberLeds));
+        pixelbrush->setFadeSpeed(WM_FADE_SPEED);
+        pixelbrush->setFadein(true);
+        pixelbrush->setFadeout(true);
+        pixelbrush->moveTo(numberLeds / 2);
+        brushcolor.h = 128;
+        pixelbrush2->setColor(brushcolor);
+        pixelbrush2->setSpeed(-WM_BRUSH_SPEED(numberLeds));
+        pixelbrush2->setFadeSpeed(WM_FADE_SPEED);
+        pixelbrush2->setFadein(true);
+        pixelbrush2->moveTo(numberLeds / 2);
+        pixelcanvas->clear();
+    }
+  
+    //neopixels->clear();
+    pixelbrush->paint(); //paint the brush to the canvas (and update the brush, i.e. move it a little)
+    pixelbrush2->paint(); //paint the brush to the canvas (and update the brush, i.e. move it a little)
+    pixelcanvas->transfer(); //transfer (add) the canvas to the neopixels
+  
+    pixelsShow = true;
+
+    if (pixelbrush->getPosition() == numberLeds -1)
+    {
+        changeTask(WHITE);
+    }
+}
+
+void whitemiddleon_() {
+    if (initialized == false) {
+        initialized = true;
         wmBrightness = 0;
+        wmIncreaseTime = INCREASE_FAC / numberLeds;
+        wmLastIncrease = millis();
     }
 
+    if (millis() - wmLastIncrease < wmIncreaseTime)
+    {
+        return;
+    }
+    wmLastIncrease = millis();
     wmBrightness ++;
 
-    byte middle = numberLeds / 2;
-    uint32_t brightness = wmBrightness >> WMSHIFT;
-    for (byte idx = 0; idx <= middle; ++idx) 
+    uint16_t middle = numberLeds / 2;
+    uint32_t brightness = wmBrightness;
+    for (uint16_t idx = 0; idx <= middle; ++idx) 
     {
-        byte rgb = brightness >= 255 ? 255 : brightness;
+        {
+            uint8_t rgb = brightness >= 255 ? 255 : brightness;
+            valuesRGBW.c.r = rgb;
+            valuesRGBW.c.g = rgb;
+            valuesRGBW.c.b = rgb;
+            valuesRGBW.c.w = rgb;
+        }
         uint32_t ledNum;
         if (numberLeds - idx >= middle)
         {
@@ -349,7 +401,7 @@ void whitemiddleon() {
         {
             ledNum = numberLeds - 1;
         }
-        neopixels->setPixelColor(ledNum, rgb, rgb, rgb);
+        neopixels->setPixelColor(ledNum, valuesRGBW.rgbw);
 
         if (middle >= idx)
         {
@@ -359,7 +411,7 @@ void whitemiddleon() {
         {
             ledNum = 0;
         }
-        neopixels->setPixelColor(ledNum, rgb, rgb, rgb);
+        neopixels->setPixelColor(ledNum, valuesRGBW.rgbw);
         if (!ledNum)
         {
             if (brightness >= 255)
@@ -373,7 +425,7 @@ void whitemiddleon() {
         }
         else
         {
-            brightness = 0;
+            break;
         }
     }
   
@@ -383,16 +435,29 @@ void whitemiddleon() {
 void whitemiddleoff() {
     if (initialized == false) {
         initialized = true;
-        wmBrightness = (255 + numberLeds/2 * WMSTEP) << WMSHIFT;
+        wmBrightness = (255 + numberLeds/2 * WMSTEP);
+        wmIncreaseTime = INCREASE_FAC / numberLeds;
+        wmLastIncrease = millis();
     }
 
+    if (millis() - wmLastIncrease < wmIncreaseTime)
+    {
+        return;
+    }
+    wmLastIncrease = millis();
     wmBrightness --;
 
-    byte middle = numberLeds / 2;
-    uint32_t brightness = wmBrightness >> WMSHIFT;
+    uint16_t middle = numberLeds / 2;
+    uint32_t brightness = wmBrightness;
     for (byte idx = 0; idx <= middle; ++idx) 
     {
-        byte rgb = brightness >= 255 ? 255 : brightness;
+        {
+            uint8_t rgb = brightness >= 255 ? 255 : brightness;
+            valuesRGBW.c.r = rgb;
+            valuesRGBW.c.g = rgb;
+            valuesRGBW.c.b = rgb;
+            valuesRGBW.c.w = rgb;
+        }
         uint32_t ledNum;
         if (numberLeds - idx >= middle)
         {
@@ -402,7 +467,7 @@ void whitemiddleoff() {
         {
             ledNum = numberLeds - 1;
         }
-        neopixels->setPixelColor(ledNum, rgb, rgb, rgb);
+        neopixels->setPixelColor(ledNum, valuesRGBW.rgbw);
 
         if (middle >= idx)
         {
@@ -412,7 +477,7 @@ void whitemiddleoff() {
         {
             ledNum = 0;
         }
-        neopixels->setPixelColor(ledNum, rgb, rgb, rgb);
+        neopixels->setPixelColor(ledNum, valuesRGBW.rgbw);
         if (ledNum == middle)
         {
             if (!brightness)
