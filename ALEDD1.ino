@@ -146,7 +146,7 @@ bool powerSupplyControl;
 unsigned long powerSupplyOffDelay; 
 unsigned long powerSupplyOffMillis;
 unsigned long psStateCheckedMillis;
-bool lastPowerSupplyReady;
+bool lastPowerReady;
 
 bool onMeansDay;
 bool sendOnStartup;
@@ -386,12 +386,13 @@ bool anyMessageSet()
 
 void powerSupply(){
 
+    // Check power supply pin
     {
         bool currentPowerReady = POWER_SUPPLY_PIN_ACTIVE digitalRead(POWER_SUPPLY_PIN);
-        if (lastPowerSupplyReady != currentPowerReady)
+        if (lastPowerReady != currentPowerReady)
         {
             psStateCheckedMillis = millis();
-            lastPowerSupplyReady = currentPowerReady;
+            lastPowerReady = currentPowerReady;
             dbg_print(F("Pin changed: %d"), currentPowerReady);
         }
         if (psStateCheckedMillis && (millis() - psStateCheckedMillis >= 100))
@@ -416,11 +417,7 @@ void powerSupply(){
     }
 
     if(powerSupplyControl){
-        if(dimmer.getCurrentValue() == 0 || (!valuesRGBW.rgbw && !anyMessageSet()) ){
-            allLedsOff = true;
-        }else{
-            allLedsOff = false;
-        }
+        allLedsOff = dimmer.getCurrentValue() == 0 || (!valuesRGBW.rgbw && !anyMessageSet() && !isAnimationRunning());
         if(powerSupplyTurnOn && !powerSupplyReady){
             go_Power_supply_Switch.value(true);
             dbg_print(F("Turn PS on!"));
@@ -496,17 +493,20 @@ void loop()
         dimmer.resetUpdateFlag();
 
         byte dimmValue = dimmer.getCurrentValue();
-
-        if ((lastDimmValue != 0) != (dimmValue != 0))
-        {
-            go_Dimmer_Switch_status.value(dimmValue != 0);
-            dbg_print(F("Send dimmer status: %d"), dimmValue != 0);
-        }
         if (lastDimmValue != dimmValue)
         {
-            lastDimmValue = dimmValue;
+            // dimm value has changed
+            // Check status first => send status first
+            if ((lastDimmValue != 0) != (dimmValue != 0))
+            {
+                go_Dimmer_Switch_status.value(dimmValue != 0);
+                dbg_print(F("Send dimmer status: %d"), dimmValue != 0);
+            }
+
             go_Dimmer_Dimm_status.value(dimmValue);
             dbg_print(F("Send dimmer value status: %d"), dimmValue);
+
+            lastDimmValue = dimmValue;
         }
         
         if (!dimmValue) {
