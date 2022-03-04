@@ -183,7 +183,7 @@ void rgbwCallback(GroupObject &go) // RGBW 251.600
 
 void msgCallback(GroupObject &go)
 {
-    byte msgNum = (go.asap() - NUM_Message_1_Switch);
+    byte msgNum = (go.asap() - NUM_Message_1_Switch_Switch);
     byte msgFunc = msgNum % 4;
     msgNum /= 4;
     bool powerOn = false;

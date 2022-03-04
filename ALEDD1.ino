@@ -200,17 +200,17 @@ void setup()
     // print values of parameters if device is already configured
     if (knx.configured())
     {
-        go_Dimmer_Switch.dataPointType(DPT_Switch);
-        go_Dimmer_Switch.callback(dimmSwitchCallback);
+        go_DimmerSwitch_Switch.dataPointType(DPT_Switch);
+        go_DimmerSwitch_Switch.callback(dimmSwitchCallback);
 
-        go_Dimmer_Dimming_relativ.dataPointType(DPT_Control_Dimming);
-        go_Dimmer_Dimming_relativ.callback(dimmRelCallback);
+        go_DimmerRel_Dimming_relativ.dataPointType(DPT_Control_Dimming);
+        go_DimmerRel_Dimming_relativ.callback(dimmRelCallback);
 
-        go_Dimmer_Dimming_absolute.dataPointType(DPT_Percent_U8);
-        go_Dimmer_Dimming_absolute.callback(dimmAbsCallback);
+        go_DimmerAbs_Dimming_absolute.dataPointType(DPT_Percent_U8);
+        go_DimmerAbs_Dimming_absolute.callback(dimmAbsCallback);
 
-        go_Dimmer_Switch_status.dataPointType(DPT_Switch);
-        go_Dimmer_Dimm_status.dataPointType(DPT_Percent_U8);
+        go_DimmerSwitchStatus_Switch_status.dataPointType(DPT_Switch);
+        go_DimmerSwitchStatus_Switch_status.dataPointType(DPT_Percent_U8);
 
         go_DimmScene_Dimm_Scene.dataPointType(DPT_SceneNumber);
         go_DimmScene_Dimm_Scene.callback(dimmSceneCallback);
@@ -233,18 +233,18 @@ void setup()
         go_RGBW_RGBW_Value.dataPointType(DPT_Colour_RGBW);
         go_RGBW_RGBW_Value.callback(rgbwCallback);
 
-        go_Scene_Scene_status.dataPointType(DPT_SceneNumber);
+        go_SceneStatus_Scene_status.dataPointType(DPT_SceneNumber);
         go_Power_supply_Switch.dataPointType(DPT_Switch);
 
         for (byte mc = 0; mc < MESSAGES; mc++) {
-            knx.getGroupObject(NUM_Message_1_Switch + mc*MSGGOCNT).dataPointType(DPT_Switch);
-            knx.getGroupObject(NUM_Message_1_Switch + mc*MSGGOCNT).callback(msgCallback);
-            knx.getGroupObject(NUM_Message_1_Percentage + mc*MSGGOCNT).dataPointType(DPT_Percent_U8);
-            knx.getGroupObject(NUM_Message_1_Percentage + mc*MSGGOCNT).callback(msgCallback);
-            knx.getGroupObject(NUM_Message_1_Color_RGB + mc*MSGGOCNT).dataPointType(DPT_Colour_RGB);
-            knx.getGroupObject(NUM_Message_1_Color_RGB + mc*MSGGOCNT).callback(msgCallback);
-            knx.getGroupObject(NUM_Message_1_Color_RGBW + mc*MSGGOCNT).dataPointType(DPT_Colour_RGBW);
-            knx.getGroupObject(NUM_Message_1_Color_RGBW + mc*MSGGOCNT).callback(msgCallback);
+            knx.getGroupObject(NUM_Message_1_Switch_Switch + mc*MSGGOCNT).dataPointType(DPT_Switch);
+            knx.getGroupObject(NUM_Message_1_Switch_Switch + mc*MSGGOCNT).callback(msgCallback);
+            knx.getGroupObject(NUM_Message_1_Percent_Percentage + mc*MSGGOCNT).dataPointType(DPT_Percent_U8);
+            knx.getGroupObject(NUM_Message_1_Percent_Percentage + mc*MSGGOCNT).callback(msgCallback);
+            knx.getGroupObject(NUM_Message_1_RGB_Color_RGB + mc*MSGGOCNT).dataPointType(DPT_Colour_RGB);
+            knx.getGroupObject(NUM_Message_1_RGB_Color_RGB + mc*MSGGOCNT).callback(msgCallback);
+            knx.getGroupObject(NUM_Message_1_RGBW_Color_RGBW + mc*MSGGOCNT).dataPointType(DPT_Colour_RGBW);
+            knx.getGroupObject(NUM_Message_1_RGBW_Color_RGBW + mc*MSGGOCNT).callback(msgCallback);
         }
 
         go_DayNight_Day_Night.dataPointType(DPT_Switch);
@@ -294,7 +294,7 @@ void setup()
         onMeansDay = PARMVAL_dayIsOn();
         //set day values until we know if it is day or night
         setDayNightValues(false);
-        dimmScene = PARMVAL_dimmScene();
+        dimmScene = PARMVAL_dimmScene() - 1;
 
         //XML group: User colors
 #define UCSIZE (4 * 4)
@@ -367,9 +367,9 @@ void setup()
     {
         if (PARMVAL_statusOnStart())
         {
-            go_Dimmer_Switch_status.value(false);
-            go_Dimmer_Dimm_status.value((uint8_t)0);
-            go_Scene_Scene_status.value((uint8_t)0);
+            go_DimmerSwitchStatus_Switch_status.value(false);
+            go_DimmerStatus_Dimm_status.value((uint8_t)0);
+            go_SceneStatus_Scene_status.value((uint8_t)0);
 
             go_DayNight_Day_Night.requestObjectRead();
         }
@@ -502,11 +502,11 @@ void loop()
             // Check status first => send status first
             if ((lastDimmValue != 0) != (dimmValue != 0))
             {
-                go_Dimmer_Switch_status.value(dimmValue != 0);
+                go_DimmerSwitchStatus_Switch_status.value(dimmValue != 0);
                 dbg_print(F("Send dimmer status: %d"), dimmValue != 0);
             }
 
-            go_Dimmer_Dimm_status.value(dimmValue);
+            go_DimmerStatus_Dimm_status.value(dimmValue);
             dbg_print(F("Send dimmer value status: %d"), dimmValue);
 
             lastDimmValue = dimmValue;
@@ -520,14 +520,14 @@ void loop()
     if (sendSceneNumber < 64)
     {
         dbg_print(F("Send scene status: %d"), sendSceneNumber);
-        go_Scene_Scene_status.value(sendSceneNumber);
+        go_SceneStatus_Scene_status.value(sendSceneNumber);
         sendSceneNumber = 0xFF;
     }
     if (millis() - rgbwStateMillis > STATE_CHANGE_DELAY && valuesRGBW.rgbw != valuesRGBWState.rgbw)
     {
         rgbwStateMillis = millis();
         valuesRGBWState.rgbw = valuesRGBW.rgbw;
-        go_RGBW_RGBW_Status.valueNoSend((byte)15, Dpt(251, 600, 1));
-        go_RGBW_RGBW_Status.value(valuesRGBW.rgbw << 8 | valuesRGBW.rgbw >> 24, Dpt(251, 600, 0));
+        go_RGBWStatus_RGBW_Status.valueNoSend((byte)15, Dpt(251, 600, 1));
+        go_RGBWStatus_RGBW_Status.value(valuesRGBW.rgbw << 8 | valuesRGBW.rgbw >> 24, Dpt(251, 600, 0));
     }
 }
