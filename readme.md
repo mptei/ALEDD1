@@ -1,15 +1,27 @@
-# Firmware for ALEDD1 (Addressable LED Driver 1)
+# KNX to RGB(W) Stripe
 
-DONT USE SOURCE CODE from github! 
-Use releases only: [https://github.com/KONNEKTING/ALEDD1/releases](https://github.com/KONNEKTING/ALEDD1/releases)
+Based on [Konnekting ALEDD1](https://github.com/KONNEKTING/ALEDD1)
 
-This firmware requires external libraries, all of them can be installed via Arduino IDE library manager. Please check comment in [ALEDD1.ino](https://github.com/KONNEKTING/ALEDD1/blob/master/ALEDD1.ino#L7-L15)
+## Behavior
 
-at the moment a special version of KONNEKTING Device Library is required (but it is included).
+### Day/Night
 
-not all features are implemented. 
+It is possible to define a minimum and a maximum brightness for day and night. Switching between day and night is done via group object.
 
-Pull-requests are welcome :)
+The brightness value from bus is converted into a brightness value in the given range. The brightness status otherwise is scaled back to the full range.
 
-HW and some FAQs (at the moment in german only): [https://knx-user-forum.de/](https://knx-user-forum.de/forum/projektforen/konnekting/1264204-aledd1-addressable-led-driver-ws2811-ws2812-sk6812)
+When switching between day and night the brightness is adjusted to the valid range.
 
+### Messages
+
+Messages are values which are displayed via ranges of LEDs. They are supported via a boolean group object, which allows to switch the message LEDs on and off, or via percent object which determines how many of the message LEDs are lit.
+
+The message LEDs are determined by a start and end number. The LED with the start number determines the lowest LED and the LED with the end number the highest LED. That means the end number doesn't need to be greater than the start number. Instead the LEDs will lit beginning from the start number going to end number the higher the percentage value goes.
+
+The messages are ordered. If messages share LEDs the higher message number has precedence and will overwrite lower messages.
+
+Messages are presented on top of a static color or animation.
+
+If any message is set active the stripe is switched on. If all message are set inactive and the stripe was off before, the stripe goes off.
+
+When a message switched the stripe on and the stripe is switched off, the stripe goes off.
