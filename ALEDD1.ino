@@ -338,6 +338,7 @@ void setup()
         // Off by default
         neopixels->setBrightness(0);
         pixelsShow = true;
+        setDayNightValues(false);
     }
     else
     {
@@ -369,6 +370,8 @@ void setup()
             go_Dimmer_Switch_status.value(false);
             go_Dimmer_Dimm_status.value((uint8_t)0);
             go_Scene_Scene_status.value((uint8_t)0);
+
+            go_DayNight_Day_Night.requestObjectRead();
         }
     }
 
