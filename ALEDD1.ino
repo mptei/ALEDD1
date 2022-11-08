@@ -14,7 +14,6 @@
 #endif
 
 #include <DimmerControl.h>
-#include <FlashAsEEPROM.h>
 #include <Adafruit_NeoPixel_ZeroDMA.h>
 #include <NeoPixelPainter.h>
 
@@ -351,8 +350,6 @@ void setup()
     knx.ledPinActiveOn(HIGH);
     // pin or GPIO programming button is connected to. Default is 0
     knx.buttonPin(PROG_BUTTON_PIN);
-    // RISING or FALLING edge to react
-    knx.buttonPinInterruptOn(PROG_BUTTON_INT);
     // The UART to use
     knx.platform().knxUart(&SerialKNX);
 
